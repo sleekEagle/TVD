@@ -1,11 +1,5 @@
 from pathlib import Path
-import sys
-parent_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(parent_dir))
-import CONF
 import os
-import torch
-from torch.utils.data import Dataset, DataLoader
 
 SSV2_PATH = r'C:\Users\lahir\Downloads\s2s_test'
 
