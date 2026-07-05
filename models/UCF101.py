@@ -5,73 +5,112 @@ import torch.nn as nn
 from transformers import AutoModelForVideoClassification, AutoVideoProcessor
 from huggingface_hub import hf_hub_download
 from torchvision.transforms import Compose, Resize, CenterCrop, Normalize, ToTensor
-
 from torchcodec.decoders import VideoDecoder
 from torchvision.transforms import v2
+import cv2
+import numpy as np
+import torch
+from PIL import Image
+from torchvision import transforms
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class HF_MODEL(nn.Module):
-    def __init__(self):
+    def __init__(self, num_frames=16, spatial_size=112):
         super().__init__()
 
-        # self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        # hf_repo = "facebook/vjepa2-vitl-fpc16-256-ssv2"
-        # self.model = AutoModelForVideoClassification.from_pretrained(hf_repo).to(self.device)
-        # self.processor = AutoVideoProcessor.from_pretrained(hf_repo)
-
-        # id2label = self.model.config.id2label
-        # self.label2id = {}
-        # for k in id2label:
-        #     new_k = id2label[k].replace('[','').replace(']','').replace('\'','')
-        #     self.label2id[new_k] = k
-
+        self.num_frames=num_frames
+        self.spatial_size=spatial_size
+        # Transform
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((128, 171)),
+                transforms.CenterCrop(spatial_size),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.43216, 0.394666, 0.37645], std=[0.22803, 0.22145, 0.216989]
+                ),
+            ]
+        )
 
     #input shape of x: 1,3,16,224,224
-    def forward(self, x):
-        x = x.permute(0,2,1,3,4)
-        output = self.model(x)
-        logits = output.logits
-        return logits
-
-    def sample_frames(self, video_path, num_frames=16):
-        decoder = VideoDecoder(video_path)
-        vid_len = len(decoder)
-        frame_idx = np.linspace(0, vid_len - 1, self.model.config.frames_per_clip, dtype=int)
-        video = decoder.get_frames_at(indices=frame_idx).data
-        return video 
-
-    def video_from_path(self, path):
-        frames = self.sample_frames(str(path), num_frames=16)
-        inputs = self.processor(frames, return_tensors="pt").to(self.device)
-        return inputs
+    # def forward(self, x):
+    #     x = x.permute(0,2,1,3,4)
+    #     output = self.model(x)
+    #     logits = output.logits
+    #     return logits
     
-    def predict_from_path(self, path):
-        inputs = self.video_from_path(path)
+    def _load_video(self, video_path):
+        """Load video and extract frames."""
+        cap = cv2.VideoCapture(str(video_path))
+        frames = []
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Convert BGR to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(frame)
+
+        cap.release()
+
+        if len(frames) == 0:
+            raise ValueError(f"No frames extracted from {video_path}")
+
+        return frames
+
+    def _sample_frames(self, frames):
+        """Sample num_frames uniformly from video."""
+        total_frames = len(frames)
+
+        if total_frames < self.num_frames:
+            # Repeat frames if video too short
+            indices = np.arange(total_frames)
+            indices = np.tile(indices, int(np.ceil(self.num_frames / total_frames)))
+            indices = indices[: self.num_frames]
+        else:
+            # Uniform sampling
+            indices = np.linspace(0, total_frames - 1, self.num_frames).astype(int)
+
+        return [frames[i] for i in indices]
+    
+    def predict_video(self, video_path, top_k=5):
+        """Predict action from video.
+
+        Args:
+            video_path: Path to video file
+            top_k: Number of top predictions to return
+
+        Returns:
+            Dictionary with predictions
+        """
+        # Load and sample frames
+        frames = self._load_video(video_path)
+        frames = self._sample_frames(frames)
+
+        # Transform frames
+        transformed_frames = []
+        for frame in frames:
+            frame_pil = Image.fromarray(frame)
+            frame_tensor = self.transform(frame_pil)
+            transformed_frames.append(frame_tensor)
+
+        # Stack: (T, C, H, W) → (C, T, H, W)
+        video_tensor = torch.stack(transformed_frames).permute(1, 0, 2, 3)
+        video_tensor = video_tensor.unsqueeze(0)  # Add batch dim: (1, C, T, H, W)
+        video_tensor = video_tensor.to(self.device)
+
+        # Predict
         with torch.no_grad():
-            outputs = self.model(**inputs)
-        pred_cls = outputs.logits.argmax(-1).item()
-        return pred_cls 
-    
-    def predict_from_batch_path(self, paths):
-        bs = 32
-        paths = [paths[i:i + bs] for i in range(0, len(paths), bs)]
+            outputs = self.model(video_tensor)
 
-        pred_t = torch.empty(0)
-        for i, pbatch in enumerate(paths):
-            print(f'Processing batch {(i+1)/len(paths):.2%} %', end='\r')
-            vid_list = []
-            for p in pbatch:
-                frames = self.sample_frames(str(p), num_frames=16)
-                vid_list.append(frames)
-            inputs = self.processor(vid_list, return_tensors="pt").to(device)
-            with torch.no_grad():
-                p = self.model(**inputs)
-            pred_t = torch.cat((pred_t, p.logits.cpu()), dim=0)
+        return outputs
 
-        return pred_t
-    
+'''
+acc: 0.85223367697594595
+''' 
 class MC3_18(HF_MODEL):
     def __init__(self):
         super().__init__()
@@ -91,33 +130,28 @@ class MC3_18(HF_MODEL):
 
         self.model = model
         self.model.eval()
+        self.model.to(self.device)
 
-        self.transform = v2.Compose([
-            v2.Resize((128, 171)),
-            v2.CenterCrop(112),
-            v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=[0.43216, 0.394666, 0.37645], 
-                    std=[0.22803, 0.22145, 0.216989])
-        ])
+'''
+acc: 81.52260111022997
+'''
+class R3D_18(HF_MODEL):
+    def __init__(self):
+        super().__init__()
+        from torchvision.models.video import r3d_18
+        model = r3d_18(pretrained=False, num_classes=101)
 
-    def predict_from_path(self, path):
-        decoder = VideoDecoder(path)
-        indices = torch.linspace(0, decoder.metadata.num_frames - 1, 16).long().tolist() 
-        sampled_frames = decoder.get_frames_at(indices=indices) 
-        if hasattr(sampled_frames, 'data'):
-            frame_tensors = sampled_frames.data  # Shape: (N, C, H, W) or (N, H, W, C)
-        else:
-            # Option B: Convert directly - torchcodec returns frames as tensor list
-            frame_tensors = torch.stack([sampled_frames[i] for i in range(len(sampled_frames))])
-        
-        self.transform(frame_tensors[0])
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        model_path = hf_hub_download(repo_id="dronefreak/r3d-18-ucf101", filename="r3d18-ufc101-split-1.pth")
+        checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
 
-        processed_frames = torch.stack([self.transform(frame) for frame in frame_tensors])
+        #rename dict
+        d = {}
+        for k in checkpoint['model_state_dict']:
+            new_k = '.'.join(k.split('.')[1:])
+            d[new_k] = checkpoint['model_state_dict'][k]
+        model.load_state_dict(d)
 
-
-
-        inputs = self.video_from_path(path)
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-        pred_cls = outputs.logits.argmax(-1).item()
-        return pred_cls 
+        self.model = model
+        self.model.eval()
+        self.model.to(self.device)
