@@ -27,6 +27,7 @@ def eval(dataset, model):
 
 if __name__ == "__main__":
     # eval('ucf101', 'mc3-18')
-    eval('ucf101', 'r3d-18')
+    # eval('ucf101', 'r3d-18')
+    eval('ucf101', 'mae-base')
 
 

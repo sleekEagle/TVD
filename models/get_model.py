@@ -9,6 +9,8 @@ def get_model(dataset_name, model_name):
     elif dataset_name == 'ucf101':
         if model_name == 'mc3-18':
             model = ucf101.MC3_18()
-        if model_name == 'r3d-18':
+        elif model_name == 'r3d-18':
             model = ucf101.R3D_18()
+        elif model_name == 'mae-base':
+            model = ucf101.MAE_B()
     return model
