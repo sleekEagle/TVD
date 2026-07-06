@@ -3,6 +3,8 @@ import numpy as np
 from torchcodec.decoders import VideoDecoder
 import torch.nn as nn
 from transformers import AutoModelForVideoClassification, AutoVideoProcessor
+import cv2
+import numpy as np
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -66,3 +68,76 @@ class VJEPA2(nn.Module):
             pred_t = torch.cat((pred_t, p.logits.cpu()), dim=0)
 
         return pred_t
+    
+from transformers import AutoImageProcessor, TimesformerForVideoClassification
+import os
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+
+class TFORMER_b(nn.Module):
+    def __init__(self, num_frames=8):
+        super().__init__()
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.num_frames = num_frames
+
+        self.processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2")
+        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2")
+
+    def _load_video(self, video_path):
+        """Load video and extract frames."""
+        cap = cv2.VideoCapture(str(video_path))
+        frames = []
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Convert BGR to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(frame)
+
+        cap.release()
+
+        if len(frames) == 0:
+            raise ValueError(f"No frames extracted from {video_path}")
+
+        return frames
+    
+    def _sample_frames(self, frames):
+        """Sample num_frames uniformly from video."""
+        total_frames = len(frames)
+
+        if total_frames < self.num_frames:
+            # Repeat frames if video too short
+            indices = np.arange(total_frames)
+            indices = np.tile(indices, int(np.ceil(self.num_frames / total_frames)))
+            indices = indices[: self.num_frames]
+        else:
+            # Uniform sampling
+            indices = np.linspace(0, total_frames - 1, self.num_frames).astype(int)
+
+        return [frames[i] for i in indices]
+    
+    def predict_video(self, video_path):
+        # Load and sample frames
+        frames = self._load_video(video_path)
+        frames = self._sample_frames(frames)
+        inputs = self.processor(images=frames, return_tensors="pt")
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+        return outputs.logits
+    
+
+class TFORMER_hr(TFORMER_b):
+    def __init__(self, num_frames=16):
+        super().__init__()
+        import os
+        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.num_frames = num_frames
+
+        self.processor = AutoImageProcessor.from_pretrained("facebook/timesformer-hr-finetuned-ssv2")
+        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-hr-finetuned-ssv2")

@@ -20,9 +20,10 @@ def eval(dataset, model):
 
 if __name__ == "__main__":
     # for ucf101 dataset
-    eval('ucf101', 'mc3-18')
+    # eval('ucf101', 'mc3-18')
     # eval('ucf101', 'r3d-18')
 
     #for ssv2 dataset
-    
+    eval('ssv2','tformer_hr')
+
 

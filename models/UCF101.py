@@ -70,15 +70,6 @@ class HF_MODEL(nn.Module):
         return transformed_frames
     
     def predict_video(self, video_path):
-        """Predict action from video.
-
-        Args:
-            video_path: Path to video file
-            top_k: Number of top predictions to return
-
-        Returns:
-            Dictionary with predictions
-        """
         # Load and sample frames
         frames = self._load_video(video_path)
         frames = self._sample_frames(frames)
@@ -99,6 +90,7 @@ class HF_MODEL(nn.Module):
 **********************************************************
 **********************************************************
 Drone Freak Models
+https://github.com/dronefreak/human-action-classification
 **********************************************************
 **********************************************************
 '''

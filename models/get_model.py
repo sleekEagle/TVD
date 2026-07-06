@@ -4,8 +4,12 @@ import models.UCF101 as ucf101
 # UCF101 model from https://github.com/sonho4ng/Human-Action-Recognition-UCF101/tree/main
 def get_model(dataset_name, model_name):
     if dataset_name == 'ssv2':
-        if model_name == 'VJEPA2':
+        if model_name == 'vjepa2':
             model = ssv2.VJEPA2()
+        elif model_name == 'tformer_base':
+            model = ssv2.TFORMER_b()
+        elif model_name == 'tformer_hr':
+            model = ssv2.TFORMER_hr()
     elif dataset_name == 'ucf101':
         if model_name == 'mc3-18':
             model = ucf101.MC3_18()
