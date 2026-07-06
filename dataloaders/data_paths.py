@@ -6,6 +6,10 @@ def get_paths(dataset):
     elif dataset == 'ucf101':
         import dataloaders.UCF101 as UCF101
         path_list, cls_list, idx_list = UCF101.get_paths()
+    elif dataset == 'diving48':
+        import dataloaders.diving48 as diving48
+        path_list, cls_list, idx_list = diving48.get_paths()
+
 
     return path_list, cls_list, idx_list
         
