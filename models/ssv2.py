@@ -3,6 +3,7 @@ import numpy as np
 from torchcodec.decoders import VideoDecoder
 import torch.nn as nn
 from transformers import AutoModelForVideoClassification, AutoVideoProcessor
+from transformers import AutoImageProcessor, TimesformerForVideoClassification
 import cv2
 import numpy as np
 
@@ -44,12 +45,11 @@ class VJEPA2(nn.Module):
         inputs = self.processor(frames, return_tensors="pt").to(self.device)
         return inputs
     
-    def predict_from_path(self, path):
+    def predict_video(self, path):
         inputs = self.video_from_path(path)
         with torch.no_grad():
             outputs = self.model(**inputs)
-        pred_cls = outputs.logits.argmax(-1).item()
-        return pred_cls 
+        return outputs.logits 
     
     def predict_from_batch_path(self, paths):
         bs = 32
@@ -69,10 +69,7 @@ class VJEPA2(nn.Module):
 
         return pred_t
     
-from transformers import AutoImageProcessor, TimesformerForVideoClassification
-import os
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-
+#tformer from https://github.com/mit-han-lab/temporal-shift-module
 class TFORMER_b(nn.Module):
     def __init__(self, num_frames=8):
         super().__init__()

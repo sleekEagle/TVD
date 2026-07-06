@@ -3,6 +3,9 @@ from models import get_model
 import torch
 import random
 
+import os
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+
 def eval(dataset, model):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model)
@@ -24,6 +27,8 @@ if __name__ == "__main__":
     # eval('ucf101', 'r3d-18')
 
     #for ssv2 dataset
-    eval('ssv2','tformer_hr')
+    # eval('ssv2','tformer_hr')
+    eval('ssv2','tformer_base')
+    # eval('ssv2','vjepa2')
 
 
