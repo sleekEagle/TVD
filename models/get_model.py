@@ -1,5 +1,6 @@
 import models.ssv2 as ssv2
 import models.UCF101 as ucf101
+import models.diving48 as diving48
 
 # UCF101 model from https://github.com/sonho4ng/Human-Action-Recognition-UCF101/tree/main
 def get_model(dataset_name, model_name):
@@ -19,4 +20,8 @@ def get_model(dataset_name, model_name):
             model = ucf101.MAE_B()
         elif model_name == 'vjepa2':
             model = ucf101.VJEPA2()
+    elif dataset_name == 'diving48':
+        if model_name == 'vjepa2':
+            model = diving48.VJEPA2()
+
     return model

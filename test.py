@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # eval('ssv2','vjepa2')
 
     # for diving48  dataset
-    eval('diving48', 'modelname')
+    eval('diving48', 'vjepa2')
 
 
 
