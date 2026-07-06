@@ -12,6 +12,8 @@ import numpy as np
 import torch
 from PIL import Image
 from torchvision import transforms
+from transformers import AutoImageProcessor, AutoModelForVideoClassification
+from transformers import AutoTokenizer, AutoModel, AutoProcessor
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -184,7 +186,6 @@ Other HF Models
 **********************************************************
 '''
 
-from transformers import AutoImageProcessor, AutoModelForVideoClassification
 # Disable all progress bars
 import os
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"

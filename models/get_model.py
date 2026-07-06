@@ -13,4 +13,6 @@ def get_model(dataset_name, model_name):
             model = ucf101.R3D_18()
         elif model_name == 'mae-base':
             model = ucf101.MAE_B()
+        elif model_name == 'vjepa2':
+            model = ucf101.VJEPA2()
     return model
