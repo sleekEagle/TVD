@@ -1,6 +1,8 @@
 import os
 import random
 import numpy as np
+import h5py
+import torch
 
 def get_pred(model, path):
     fname = os.path.basename(path)
@@ -68,6 +70,49 @@ def fill_video(tofill, fillwith, video):
     video[:, :, tofill_t] = video[:, :, fillwith_t].clone()
 
 
+
+#****************************************************************************************************************
+#****************************************************************************************************************
+# reading .h5 files
+#****************************************************************************************************************
+#****************************************************************************************************************
+# get all keys from a given .h5 file
+def get_h5_keys(filename):
+    with h5py.File(filename, "r") as f:
+        return list(f.keys())
+
+# read 'our' nested dict structure from a given h5 file and a key
+# use: get_h5_item(r"D:\output\TVD\level1\ucf101_r3d-18.h5", "v_ApplyEyeMakeup_g01_c01.avi" )
+def get_h5_item(h5file, key):
+    with h5py.File(h5file, "r") as f:
+        g = f[key]
+        d = {}
+        for k in g.keys():
+            d_ = {}
+            for sub_k in g[k].keys():
+                d_[sub_k] = g[k][sub_k][:]
+            d[k] = d_
+        return d
+    
+def save_dict_to_h5(group, dictionary):
+    for key, value in dictionary.items():
+
+        if isinstance(value, dict):
+            # create nested group
+            subgroup = group.create_group(key)
+            save_dict_to_h5(subgroup, value)
+
+        elif torch.is_tensor(value):
+            # save tensor
+            group.create_dataset(
+                key,
+                data=value.cpu().numpy()
+            )
+
+        elif isinstance(value, str):
+            # save string as attribute
+            group.attrs[key] = value
+            
 #****************************************************************************************************************
 #****************************************************************************************************************
 

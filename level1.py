@@ -69,23 +69,7 @@ def save(dataset, model):
 
             save_dict_to_h5(f, d)
 
-# get all keys from a given .h5 file
-def get_h5_keys(filename):
-    with h5py.File(filename, "r") as f:
-        return list(f.keys())
 
-# read 'our' nested dict structure from a given h5 file and a key
-# use: get_h5_item(r"D:\output\TVD\level1\ucf101_r3d-18.h5", "v_ApplyEyeMakeup_g01_c01.avi" )
-def get_h5_item(h5file, key):
-    with h5py.File(h5file, "r") as f:
-        g = f[key]
-        d = {}
-        for k in g.keys():
-            d_ = {}
-            for sub_k in g[k].keys():
-                d_[sub_k] = g[k][sub_k][:]
-            d[k] = d_
-        return d
     
 if __name__ == "__main__":
     # for ucf101 dataset
