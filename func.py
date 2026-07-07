@@ -31,13 +31,20 @@ def past_fill(keep, l=16):
         fillwith.append(k)
 
     return tofill, fillwith
-        
-        
 
+#in-place fill video [1, 3, 16, 112, 112]
+def fill_video(tofill, fillwith, video):
+    tofill_t = torch.tensor(tofill)
+    fillwith_t = torch.tensor(fillwith)
+    video[:, :, tofill_t] = video[:, :, fillwith_t].clone()
 
 
 #****************************************************************************************************************
 #****************************************************************************************************************
 
 if __name__ == "__main__":
-    past_fill([0,4,7,8,13,15])
+    tofill, fillwith = past_fill([0,4,7,8,13,15])
+    import torch
+    video = torch.rand([1,3,16,112,112])
+    fvideo = video.clone()
+    fill_video(tofill, fillwith, fvideo)
