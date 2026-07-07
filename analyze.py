@@ -7,6 +7,7 @@ import os
 import json
 import h5py
 import torch.nn.functional as F
+import numpy as np
 
 def jensen_shannon(p, q, eps=1e-10):
     """Jensen-Shannon divergence between two probability distributions"""
@@ -73,6 +74,15 @@ def dataset_curves(dataset, model, method):
 
             if method == 'random':
                 random.shuffle(idx)
+            elif method == 'greedy':
+                o_logits = data['full']['logits']
+                o_cls = np.argmax(o_logits)
+
+                max_l_list = []
+                for i in range(L):
+                    max_l_list.append(data[str(i)]['logits'][o_cls])
+                max_l_list = np.array(max_l_list)
+                idx = np.argsort(-1*max_l_list)
 
             sim_ar, js_ar = get_video_curve(model, video, data, idx)
             d={
@@ -82,4 +92,4 @@ def dataset_curves(dataset, model, method):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'random')
+    dataset_curves('ucf101', 'mc3-18', 'greedy')
