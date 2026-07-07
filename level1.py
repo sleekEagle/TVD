@@ -68,7 +68,7 @@ def save(dataset, model):
             }
 
             save_dict_to_h5(f, d)
-            
+
 # get all keys from a given .h5 file
 def get_h5_keys(filename):
     with h5py.File(filename, "r") as f:
@@ -89,5 +89,5 @@ def get_h5_item(h5file, key):
     
 if __name__ == "__main__":
     # for ucf101 dataset
-    # eval('ucf101', 'mc3-18')
-    save('ucf101', 'r3d-18')
+    save('ucf101', 'mc3-18')
+    # save('ucf101', 'r3d-18')
