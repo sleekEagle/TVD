@@ -14,6 +14,15 @@ def get_pred(model, path):
 #****************************************************************************************************************
 #****************************************************************************************************************
 
+'''
+how to use:
+    tofill, fillwith = future_fill([0,4,7,8,13,15])
+    import torch
+    video = torch.rand([1,3,16,112,112])
+    fvideo = video.clone()
+    fill_video(tofill, fillwith, fvideo)
+'''
+
 def past_fill(keep, l=16):
     tofill = [i for i in range(l) if i not in keep]
     
