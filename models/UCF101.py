@@ -23,7 +23,11 @@ class HF_MODEL(nn.Module):
     def __init__(self, ):
         super().__init__()
         self.processor = None
+        self.features = {}
     
+    def hook_fn(self, module, input, output):
+        self.features['features'] = output.detach()
+
     def _load_video(self, video_path):
         """Load video and extract frames."""
         cap = cv2.VideoCapture(str(video_path))
@@ -85,6 +89,12 @@ class HF_MODEL(nn.Module):
             outputs = self.model(video_tensor)
 
         return outputs
+    
+    def get_features(self):
+        return self.features['features'].squeeze()
+    
+    def remove_hook(self):
+        self.handle.remove()
 
 '''
 **********************************************************
@@ -131,6 +141,9 @@ class MC3_18(HF_MODEL):
         self.model.eval()
         self.model.to(self.device)
 
+        #register hook to get features
+        self.handle = self.model.avgpool.register_forward_hook(self.hook_fn)
+
 
 # acc: 81.52260111022997
 class R3D_18(HF_MODEL):
@@ -168,6 +181,9 @@ class R3D_18(HF_MODEL):
         self.model = model
         self.model.eval()
         self.model.to(self.device)
+
+        #register hook to get features
+        self.handle = self.model.avgpool.register_forward_hook(self.hook_fn)
 
 
 '''

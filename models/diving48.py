@@ -20,56 +20,44 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # Disable all progress bars
 import os
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-# https://huggingface.co/facebook/vjepa2-vitg-fpc32-384-diving48
-
+# https://huggingface.co/facebook/vjepa2-vitl-fpc32-256-diving48
+# config (look for stride): https://github.com/facebookresearch/vjepa2/blob/204698b45b3712590f06245fbfba32d3be539812/configs/inference/vitl/diving48.yaml
 class VJEPA2(nn.Module):
     def __init__(self):
         super().__init__()
-        hf_repo = "facebook/vjepa2-vitg-fpc32-384-diving48"
+        hf_repo = "facebook/vjepa2-vitl-fpc32-256-diving48"
         self.model = AutoModelForVideoClassification.from_pretrained(hf_repo).to(device)
         self.processor = AutoVideoProcessor.from_pretrained(hf_repo)
         self.num_frames=self.model.config.frames_per_clip
 
     def _load_video(self, video_path):
-        """Load video and extract frames."""
-        cap = cv2.VideoCapture(str(video_path))
-        frames = []
-
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            # Convert BGR to RGB
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(frame)
-
-        cap.release()
-
-        if len(frames) == 0:
-            raise ValueError(f"No frames extracted from {video_path}")
-
-        return frames
-    
-    def _sample_frames(self, frames):
+        vr = VideoDecoder(video_path)
+        total_frames = len(vr)
+        required_frames = self.model.config.frames_per_clip
         
-    
-    # Transform frames
-    def _process_frames(self, frames):
-        inputs = self.processor(
-            list(frames),  # Each frame as a numpy array
-            return_tensors="pt"
-        )
+        # Sample available frames (use stride of 2 as in your example)
+        stride = 2
+        frame_idx = np.arange(0, total_frames, stride)
+        
+        # If we have enough frames, sample normally
+        if len(frame_idx) >= required_frames:
+            # Take first 'required_frames' frames
+            frame_idx = frame_idx[:required_frames]
+        else:
+            # Pad by repeating the last frame
+            frame_idx = list(frame_idx)
+            while len(frame_idx) < required_frames:
+                frame_idx.append(frame_idx[-1])
+        
+        video = vr.get_frames_at(indices=np.array(frame_idx)).data
+        inputs = self.processor(video, return_tensors="pt").to(self.model.device)
         return inputs
     
+    
     def predict_video(self, video_path):
-
         # Load and sample frames
-        frames = self._load_video(video_path)
-        frames = self._sample_frames(frames)
-        inputs = self._process_frames(frames)
+        inputs = self._load_video(video_path)
 
-        # Predict
         with torch.no_grad():
             outputs = self.model(**inputs)
 
