@@ -40,35 +40,16 @@ class VJEPA2(nn.Module):
         video = decoder.get_frames_at(indices=frame_idx).data
         return video 
 
-    def video_from_path(self, path):
+    def get_video(self, path):
         frames = self.sample_frames(str(path), num_frames=16)
         inputs = self.processor(frames, return_tensors="pt").to(self.device)
-        return inputs
+        return inputs['pixel_values_videos'].permute(0,2,1,3,4) # [1,3,16,112,112]
     
-    def predict_video(self, path):
-        inputs = self.video_from_path(path)
+    def predict_video(self, video):
         with torch.no_grad():
-            outputs = self.model(**inputs)
+            outputs = self.model(video.permute(0,2,1,3,4))
         return outputs.logits 
-    
-    def predict_from_batch_path(self, paths):
-        bs = 32
-        paths = [paths[i:i + bs] for i in range(0, len(paths), bs)]
-
-        pred_t = torch.empty(0)
-        for i, pbatch in enumerate(paths):
-            print(f'Processing batch {(i+1)/len(paths):.2%} %', end='\r')
-            vid_list = []
-            for p in pbatch:
-                frames = self.sample_frames(str(p), num_frames=16)
-                vid_list.append(frames)
-            inputs = self.processor(vid_list, return_tensors="pt").to(device)
-            with torch.no_grad():
-                p = self.model(**inputs)
-            pred_t = torch.cat((pred_t, p.logits.cpu()), dim=0)
-
-        return pred_t
-    
+        
 #tformer from https://github.com/mit-han-lab/temporal-shift-module
 class TFORMER_b(nn.Module):
     def __init__(self, num_frames=8):
@@ -116,23 +97,23 @@ class TFORMER_b(nn.Module):
 
         return [frames[i] for i in indices]
     
-    def predict_video(self, video_path):
+    def get_video(self, path):
         # Load and sample frames
-        frames = self._load_video(video_path)
+        frames = self._load_video(path)
         frames = self._sample_frames(frames)
         inputs = self.processor(images=frames, return_tensors="pt")
+        return inputs['pixel_values'].permute(0,2,1,3,4) # [1,3,8,224,224]
 
+    
+    def predict_video(self, video):
         with torch.no_grad():
-            outputs = self.model(**inputs)
+            outputs = self.model(video.permute(0,2,1,3,4))
         return outputs.logits
     
 
 class TFORMER_hr(TFORMER_b):
     def __init__(self, num_frames=16):
         super().__init__()
-        import os
-        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.num_frames = num_frames
 
