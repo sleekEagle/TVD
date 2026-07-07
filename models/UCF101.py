@@ -73,7 +73,7 @@ class HF_MODEL(nn.Module):
             transformed_frames.append(frame_tensor)
         return transformed_frames
     
-    def predict_video(self, video_path):
+    def get_video(self, video_path):
         # Load and sample frames
         frames = self._load_video(video_path)
         frames = self._sample_frames(frames)
@@ -84,10 +84,12 @@ class HF_MODEL(nn.Module):
         video_tensor = video_tensor.unsqueeze(0)  # Add batch dim: (1, C, T, H, W)
         video_tensor = video_tensor.to(self.device)
 
-        # Predict
-        with torch.no_grad():
-            outputs = self.model(video_tensor)
+        return video_tensor # [1,3,16,112,112]
 
+    
+    def predict_video(self, video):
+        with torch.no_grad():
+            outputs = self.model(video)
         return outputs
     
     def get_features(self):
@@ -202,7 +204,7 @@ class MAE_B(HF_MODEL):
     def __init__(self, num_frames=16):
         super().__init__()
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
         self.processor = AutoImageProcessor.from_pretrained("nateraw/videomae-base-finetuned-ucf101")
         self.model = AutoModelForVideoClassification.from_pretrained("nateraw/videomae-base-finetuned-ucf101")
         self.num_frames=num_frames
