@@ -4,7 +4,8 @@ import numpy as np
 
 def get_pred(model, path):
     fname = os.path.basename(path)
-    pred = model.predict_video(path).squeeze()   
+    video = model.get_video(path)
+    pred = model.predict_video(video).squeeze()
     feat = model.get_features()  
     return fname, pred, feat
 
@@ -61,6 +62,7 @@ def future_fill(keep, l=16):
 
 #in-place fill video [1, 3, 16, 112, 112]
 def fill_video(tofill, fillwith, video):
+    import torch
     tofill_t = torch.tensor(tofill)
     fillwith_t = torch.tensor(fillwith)
     video[:, :, tofill_t] = video[:, :, fillwith_t].clone()
