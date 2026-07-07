@@ -201,9 +201,14 @@ os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 class MAE_B(HF_MODEL):
     def __init__(self, num_frames=16):
         super().__init__()
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
         self.processor = AutoImageProcessor.from_pretrained("nateraw/videomae-base-finetuned-ucf101")
         self.model = AutoModelForVideoClassification.from_pretrained("nateraw/videomae-base-finetuned-ucf101")
         self.num_frames=num_frames
+
+        self.model.eval()
+        self.model.to(self.device)
 
     # Transform frames
     def _process_frames(self, frames):
