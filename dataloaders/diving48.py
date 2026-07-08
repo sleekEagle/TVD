@@ -1,9 +1,10 @@
 import numpy as np
 import os
 import json
+import CONF
 
 def get_paths():
-    data_path = r'D:\datasets\Diving48_rgb'
+    data_path = CONF.DIVING_PATH
     #read class names
     with open(os.path.join(data_path, 'id2label.json'), 'r') as f:
         id2label = json.load(f)

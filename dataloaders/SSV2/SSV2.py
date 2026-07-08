@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
-
-SSV2_PATH = r'C:\Users\lahir\Downloads\s2s_test'
+import CONF
+SSV2_PATH = CONF.SSV2_PATH
 
 def get_ssv2_paths():
     path = Path(SSV2_PATH)

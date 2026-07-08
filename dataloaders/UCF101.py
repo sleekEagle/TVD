@@ -92,9 +92,10 @@ def frames_from_video_file(video_path, n_frames, output_size=(224, 224), frame_s
     return result
 
 def get_paths():
-
-    data_path = r'c:\Users\lahir\Downloads\UCF101\UCF-101'
-    split_path = r"D:\datasets\UCF101-splits\testlist01.txt"
+    import CONF
+    data_path = CONF.UCF_PATH
+    split_path = CONF.UCF_SPLIT_PATH
+    
     with open(split_path, 'r') as file:
         lines = file.readlines()
     cls_names = [l.split('/')[0] for l in lines]
