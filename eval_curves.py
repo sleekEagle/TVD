@@ -9,13 +9,14 @@ import h5py
 import torch.nn.functional as F
 import numpy as np
 from scipy.integrate import trapezoid
+import CONF
 
 def calc_auc(points):
     x = np.linspace(0, 1, len(points))
     return trapezoid(points, x)
 
 
-dir_path = r"D:\output\TVD"
+dir_path = CONF.OUT_PATH
 def eval_curves(dataset, model, method):
     curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}.h5')
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
@@ -44,5 +45,5 @@ def eval_curves(dataset, model, method):
 
 
 if __name__ == "__main__":
-    # eval_curves('ucf101', 'mc3-18', 'foolish')
+    eval_curves('ucf101', 'mc3-18', 'facility')
     pass
