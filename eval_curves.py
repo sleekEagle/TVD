@@ -44,4 +44,5 @@ def eval_curves(dataset, model, method):
 
 
 if __name__ == "__main__":
-    eval_curves('ucf101', 'mc3-18', 'foolish')
+    # eval_curves('ucf101', 'mc3-18', 'foolish')
+    pass

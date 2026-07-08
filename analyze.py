@@ -86,6 +86,13 @@ def dataset_curves(dataset, model, method):
 
                 if method == 'foolish':
                     idx = np.argsort(max_l_list)
+            elif method == 'facility': # facility location
+                emb = []
+                for i in range(L):
+                    emb.append(data[str(i)]['feat'][None,:])
+                emb = np.concatenate(emb, axis=0)
+                idx = func.emb_facilitylocation(emb)
+
 
             sim_ar, js_ar = get_video_curve(model, video, data, idx)
             d={
@@ -95,4 +102,5 @@ def dataset_curves(dataset, model, method):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'foolish')
+    dataset_curves('ucf101', 'mc3-18', 'facility')
+
