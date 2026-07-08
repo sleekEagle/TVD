@@ -74,7 +74,7 @@ def dataset_curves(dataset, model, method):
 
             if method == 'random':
                 random.shuffle(idx)
-            elif method == 'greedy':
+            elif method in ['greedy','foolish']:
                 o_logits = data['full']['logits']
                 o_cls = np.argmax(o_logits)
 
@@ -84,6 +84,9 @@ def dataset_curves(dataset, model, method):
                 max_l_list = np.array(max_l_list)
                 idx = np.argsort(-1*max_l_list)
 
+                if method == 'foolish':
+                    idx = np.argsort(max_l_list)
+
             sim_ar, js_ar = get_video_curve(model, video, data, idx)
             d={
                 fname: {'sim_ar': torch.tensor(sim_ar), 'js_ar': torch.tensor(js_ar)}
@@ -92,4 +95,4 @@ def dataset_curves(dataset, model, method):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'greedy')
+    dataset_curves('ucf101', 'mc3-18', 'foolish')

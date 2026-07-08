@@ -27,6 +27,9 @@ def eval_curves(dataset, model, method):
             g = f[fname]
             js_ar = g['js_ar'][:]
             sim_ar = g['sim_ar'][:]
+            sim_ar = (sim_ar-sim_ar.min())/(sim_ar.max()-sim_ar.min())
+            js_ar = (js_ar-js_ar.min())/(js_ar.max()-js_ar.min())
+
             js_auc = calc_auc(js_ar)
             sim_auc = calc_auc(sim_ar)
 
@@ -39,4 +42,4 @@ def eval_curves(dataset, model, method):
 
 
 if __name__ == "__main__":
-    eval_curves('ucf101', 'mc3-18', 'random')
+    eval_curves('ucf101', 'mc3-18', 'foolish')
