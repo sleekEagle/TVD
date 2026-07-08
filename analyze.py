@@ -8,6 +8,7 @@ import json
 import h5py
 import torch.nn.functional as F
 import numpy as np
+import CONF
 
 def jensen_shannon(p, q, eps=1e-10):
     """Jensen-Shannon divergence between two probability distributions"""
@@ -52,10 +53,10 @@ def get_video_curve(model, video, data, idx):
     
     return sim_ar, js_ar
 
-dir_path = r"D:\output\TVD"
 def dataset_curves(dataset, model, method):
-    level1_file = os.path.join(dir_path, 'level1', f'{dataset}_{model}.h5')
-    out_file = os.path.join(dir_path, method)
+    level1_file = os.path.join(CONF.LEVEL_1_PATH, f'{dataset}_{model}.h5')
+    out_path = CONF.OUT_PATH
+    out_file = os.path.join(out_path, method)
     os.makedirs(out_file, exist_ok=True)
     out_file = os.path.join(out_file, f'curves_{dataset}_{model}.h5') 
 
