@@ -129,6 +129,8 @@ def emb_facilitylocation(emb, k=16):
     keyframe_indices = selector.ranking
     return keyframe_indices
 
+
+
 if __name__ == "__main__":
     tofill, fillwith = future_fill([0,4,7,8,13,15])
     import torch

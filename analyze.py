@@ -93,7 +93,40 @@ def dataset_curves(dataset, model, method):
                     emb.append(data[str(i)]['feat'][None,:])
                 emb = np.concatenate(emb, axis=0)
                 idx = func.emb_facilitylocation(emb)
+            elif method == 'brute':
+                o_logits = data['full']['logits']
+                o_cls = np.argmax(o_logits)
+                max_l_list = []
+                for i in range(L):
+                    max_l_list.append(data[str(i)]['logits'][o_cls])
+                max_l_list = np.array(max_l_list)
+                best_idx = np.argmax(max_l_list)
 
+                def brute(video, best_idx, model):
+                    def get_best_idx(model, video, idx_present, o_cls):
+                        idx_left = list(set(range(video.size(2)))-set(idx_present))
+                        pred_logits = torch.empty(0).to(model.device)
+                        for idx in idx_left:
+                            keep = idx_present + [idx]
+                            tofill, fillwith = func.past_fill(keep)
+                            fvideo = video.clone()
+                            func.fill_video(tofill, fillwith, fvideo)
+
+                            pred = model.predict_video(fvideo)
+                            l = pred[:,o_cls]
+                            pred_logits = torch.concatenate([pred_logits, l])
+                        bi = idx_left[torch.argmax(pred_logits)]
+                        return bi
+                    
+                    sel_idx = [int(best_idx)]
+                    for _ in range(video.size(2)-2):
+                        bi = get_best_idx(model, video, sel_idx, o_cls)
+                        sel_idx += [bi]
+                    sel_idx += list(set(range(video.size(2))) - set(sel_idx))
+
+                    return sel_idx
+                
+                idx = brute(video, best_idx, model)
 
             sim_ar, js_ar = get_video_curve(model, video, data, idx)
             d={
@@ -103,5 +136,5 @@ def dataset_curves(dataset, model, method):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'facility')
+    dataset_curves('ucf101', 'mc3-18', 'brute')
 
