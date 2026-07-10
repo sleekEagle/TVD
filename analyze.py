@@ -126,7 +126,7 @@ def dataset_curves(dataset, model, method):
 
                     return sel_idx
                 
-                idx = brute(video, best_idx, model)
+                idx = brute(video, best_idx, model) 
 
             sim_ar, js_ar = get_video_curve(model, video, data, idx)
             d={
