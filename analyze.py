@@ -84,12 +84,11 @@ def dataset_curves(dataset, model, method):
                 i_logits = torch.tensor(i_logits)
                 sm = F.softmax(i_logits, dim=1)
                 js = jensen_shannon(sm, o_sm.repeat(16,1))
-                idx = torch.argsort(js)
+                idx = torch.argsort(js) # directly used for greedy
 
             if method == 'random':
                 random.shuffle(idx)
-            elif method in ['greedy','foolish']:
-                if method == 'foolish':
+            if method == 'foolish':
                     idx = np.argsort(-1*js)
             elif method == 'facility': # facility location
                 emb = []
