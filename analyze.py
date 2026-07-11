@@ -10,22 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 import CONF
 
-def jensen_shannon(p, q, eps=1e-10):
-    """Jensen-Shannon divergence between two probability distributions"""
-    # Add small epsilon to avoid log(0)
-    p = p + eps
-    q = q + eps
-    
-    # Normalize to ensure they sum to 1 (if not already)
-    p = p / p.sum()
-    q = q / q.sum()
-    
-    # Compute KL divergences
-    m = 0.5 * (p + q)
-    kl_pm = (p * torch.log(p / m)).sum(dim=1)
-    kl_qm = (q * torch.log(q / m)).sum(dim=1)
-    
-    return 0.5 * (kl_pm + kl_qm)
+
 
 def get_video_curve(model, video, data, idx):
     o_feat = torch.from_numpy(data['full']['feat'])
@@ -47,7 +32,7 @@ def get_video_curve(model, video, data, idx):
         feat = model.get_features().to(o_feat.device)
 
         similarity = F.cosine_similarity(feat, o_feat, dim=0)
-        js = jensen_shannon(sm, o_sm)
+        js = func.jensen_shannon(sm, o_sm)
         sim_ar.append(similarity.item())
         js_ar.append(js.item())
     
@@ -83,7 +68,7 @@ def dataset_curves(dataset, model, method):
                 i_logits = np.concatenate(i_logits)
                 i_logits = torch.tensor(i_logits)
                 sm = F.softmax(i_logits, dim=1)
-                js = jensen_shannon(sm, o_sm.repeat(16,1))
+                js = func.jensen_shannon(sm, o_sm.repeat(16,1))
                 idx = torch.argsort(js) # directly used for greedy
 
             if method == 'random':
@@ -98,33 +83,7 @@ def dataset_curves(dataset, model, method):
                 idx = func.emb_facilitylocation(emb)
             elif method == 'brute':
                 best_idx = torch.argmin(js)
-                def brute(video, best_idx, model, o_sm):
-                    def get_best_idx(model, video, idx_present, o_sm):
-                        idx_left = list(set(range(video.size(2)))-set(idx_present))
-                        pred_sm_ar = torch.empty(0).to(model.device)
-                        for idx in idx_left:
-                            keep = idx_present + [idx]
-                            tofill, fillwith = func.past_fill(keep)
-                            fvideo = video.clone()
-                            func.fill_video(tofill, fillwith, fvideo)
-
-                            pred = model.predict_video(fvideo)
-                            pred_sm = F.softmax(pred,dim=1)
-                            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
-
-                        js = jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
-                        bi = idx_left[torch.argmin(js)]
-                        return bi
-                    
-                    sel_idx = [int(best_idx)]
-                    for _ in range(video.size(2)-2):
-                        bi = get_best_idx(model, video, sel_idx, o_sm)
-                        sel_idx += [bi]
-                    sel_idx += list(set(range(video.size(2))) - set(sel_idx))
-
-                    return sel_idx
-                
-                idx = brute(video, best_idx, model, o_sm) 
+                idx = func.brute(video, best_idx, model, o_sm) 
 
             sim_ar, js_ar = get_video_curve(model, video, data, idx)
             d={
@@ -134,4 +93,4 @@ def dataset_curves(dataset, model, method):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'random')
+    dataset_curves('ucf101', 'r3d-18', 'random')
