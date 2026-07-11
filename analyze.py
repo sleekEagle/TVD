@@ -10,8 +10,6 @@ import torch.nn.functional as F
 import numpy as np
 import CONF
 
-
-
 def get_video_curve(model, video, data, idx):
     o_feat = torch.from_numpy(data['full']['feat'])
     o_logit = torch.from_numpy(data['full']['logits'])
