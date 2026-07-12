@@ -18,8 +18,15 @@ def plot_point_traj(dataset, model, fname):
     model = get_model.get_model(dataset, model)
 
     data = func.get_h5_item(level1_file, fname)
-    video = model.get_video(path_list[i])
+    video = model.get_video(path)
     L = video.size(2)
+
+    # lets compare greedy vs brute in the embedding space
+    pass
+    # greedy
+    
+
+
 
 if __name__ == "__main__":
     plot_point_traj('ucf101', 'r3d-18', 'v_Diving_g02_c04.avi')
