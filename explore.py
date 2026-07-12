@@ -168,5 +168,5 @@ def js_vs_dist(dataset, model_name):
 
 
 if __name__ == "__main__":
-    plot_JS_seq('ucf101', 'r3d-18', 'v_ApplyLipstick_g01_c02.avi')
+    plot_JS_seq('ucf101', 'mc3-18', 'v_ApplyLipstick_g01_c02.avi')
     # js_vs_dist('ucf101', 'mc3-18')
