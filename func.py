@@ -147,6 +147,20 @@ def emb_facilitylocation(emb, k=16):
     keyframe_indices = selector.ranking
     return keyframe_indices
 
+def get_js_emb(data):
+    o_logits = data['full']['logits']
+    o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
+
+    i_logits = []
+    for i in range(L):
+        i_logits.append(data[str(i)]['logits'][None,:])
+    i_logits = np.concatenate(i_logits)
+    i_logits = torch.tensor(i_logits)
+    sm = F.softmax(i_logits, dim=1)
+    js = jensen_shannon(sm, o_sm.repeat(16,1))
+
+    return js
+
 def brute(video, best_idx, model, o_sm):
     def get_best_idx(model, video, idx_present, o_sm):
         idx_left = list(set(range(video.size(2)))-set(idx_present))

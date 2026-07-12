@@ -57,22 +57,14 @@ def dataset_curves(dataset, model, method):
             idx = list(range(L))
 
             if method in ['greedy','foolish','brute']:
-                o_logits = data['full']['logits']
-                o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
-
-                i_logits = []
-                for i in range(L):
-                    i_logits.append(data[str(i)]['logits'][None,:])
-                i_logits = np.concatenate(i_logits)
-                i_logits = torch.tensor(i_logits)
-                sm = F.softmax(i_logits, dim=1)
-                js = func.jensen_shannon(sm, o_sm.repeat(16,1))
-                idx = torch.argsort(js) # directly used for greedy
-
-            if method == 'random':
-                random.shuffle(idx)
+                js = func.get_js_emb(data)
+            if method == 'greedy':
+                idx = torch.argsort(js)
             if method == 'foolish':
                     idx = np.argsort(-1*js)
+            if method == 'random':
+                random.shuffle(idx)
+
             elif method == 'facility': # facility location
                 emb = []
                 for i in range(L):
@@ -81,6 +73,8 @@ def dataset_curves(dataset, model, method):
                 idx = func.emb_facilitylocation(emb)
             elif method == 'brute':
                 best_idx = torch.argmin(js)
+                o_logits = data['full']['logits']
+                o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
                 idx = func.brute(video, best_idx, model, o_sm) 
 
             sim_ar, js_ar = get_video_curve(model, video, data, idx)
@@ -91,4 +85,4 @@ def dataset_curves(dataset, model, method):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'random')
+    dataset_curves('ucf101', 'r3d-18', 'foolish')
