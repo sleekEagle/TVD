@@ -147,12 +147,12 @@ def emb_facilitylocation(emb, k=16):
     keyframe_indices = selector.ranking
     return keyframe_indices
 
-def get_js_emb(data):
+def get_js_video(data):
     o_logits = data['full']['logits']
     o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
 
     i_logits = []
-    for i in range(L):
+    for i in range(len(data.keys())-1):
         i_logits.append(data[str(i)]['logits'][None,:])
     i_logits = np.concatenate(i_logits)
     i_logits = torch.tensor(i_logits)

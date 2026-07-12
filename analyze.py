@@ -57,7 +57,7 @@ def dataset_curves(dataset, model, method):
             idx = list(range(L))
 
             if method in ['greedy','foolish','brute']:
-                js = func.get_js_emb(data)
+                js = func.get_js_video(data)
             if method == 'greedy':
                 idx = torch.argsort(js)
             if method == 'foolish':
