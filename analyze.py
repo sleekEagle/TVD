@@ -53,31 +53,18 @@ def dataset_curves(dataset, model, method):
             video = model.get_video(path_list[i])
             fname = os.path.basename(path_list[i])
             L = video.size(2)
-            greedy_js = func.get_greedy_js(video, model)
-
-            #original prediction
-            pass
-
-
-
-
-
-
-
-                
-
-
-            
-            data = func.get_h5_item(level1_file, fname)
-            
             idx = list(range(L))
 
             if method in ['greedy','foolish','brute']:
-                js = func.get_js_video(data)
+                greedy_js = func.get_greedy_js(video, model)
             if method == 'greedy':
-                idx = torch.argsort(js)
+                idx = {}
+                for k in greedy_js:
+                    idx[k] = torch.argsort(greedy_js[k])
             if method == 'foolish':
-                    idx = np.argsort(-1*js)
+                idx = {}
+                for k in greedy_js:
+                    idx[k] = torch.argsort(-1*greedy_js[k])
             if method == 'random':
                 random.shuffle(idx)
 
@@ -101,4 +88,4 @@ def dataset_curves(dataset, model, method):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'foolish')
+    dataset_curves('ucf101', 'r3d-18', 'greedy')
