@@ -43,7 +43,32 @@ def eval_curves(dataset, model, method):
     sim_auc_avg /= len(path_list)
     print(f'sim_auc: {sim_auc_avg}, js_auc: {js_auc_avg}')
 
+def eval_compression_quality(dataset, model, method):
+    curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}.h5')
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+
+    comp = {
+        1e-3: 0,
+        5e-4: 0,
+        1e-4: 0,
+        5e-5: 0,
+        1e-5: 0,
+    }
+
+    with h5py.File(curve_file, "r") as f:
+        for path in path_list:
+            fname = os.path.basename(path)
+            g = f[fname]
+            js_ar = g['js_ar'][:]
+
+            for thr in comp.keys():
+                n = np.argwhere(js_ar<thr).min()
+                comp[thr] += int(n)
+    for thr in comp.keys():
+        comp[thr]/=len(path_list)
+    print(comp)
+
 
 if __name__ == "__main__":
-    eval_curves('ucf101', 'mc3-18', 'brute')
+    eval_compression_quality('ucf101', 'mc3-18', 'facility')
     pass
