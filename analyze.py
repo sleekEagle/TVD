@@ -52,8 +52,24 @@ def dataset_curves(dataset, model, method):
 
             video = model.get_video(path_list[i])
             fname = os.path.basename(path_list[i])
-            data = func.get_h5_item(level1_file, fname)
             L = video.size(2)
+            greedy_js = func.get_greedy_js(video, model)
+
+            #original prediction
+            pass
+
+
+
+
+
+
+
+                
+
+
+            
+            data = func.get_h5_item(level1_file, fname)
+            
             idx = list(range(L))
 
             if method in ['greedy','foolish','brute']:

@@ -70,6 +70,13 @@ def fill_video(tofill, fillwith, video):
     fillwith_t = torch.tensor(fillwith)
     video[:, :, tofill_t] = video[:, :, fillwith_t].clone()
 
+def fill_with_keep(keep, video, fill='past'):
+    if fill == 'past':
+        tofill, fillwith = past_fill(keep)
+    fvideo = video.clone()
+    fill_video(tofill, fillwith, fvideo)
+    return fvideo
+
 
 
 #****************************************************************************************************************
@@ -186,6 +193,32 @@ def brute(video, best_idx, model, o_sm):
     sel_idx += list(set(range(video.size(2))) - set(sel_idx))
 
     return sel_idx
+
+def get_greedy_js(video, model):
+    L = video.size(2)
+    o_logits = model.predict_video(video)
+    o_sm = F.softmax(o_logits, dim=1)
+
+    f_js_t, b_js_t = torch.empty(0).to(model.device), torch.empty(0).to(model.device)
+    for i in range(L):
+        keep_forward = [i]
+        keep_backward = [idx for idx in range(L) if idx!=i]
+
+        f_video = fill_with_keep(keep_forward, video)
+        f_pred = model.predict_video(f_video)
+        f_sm = F.softmax(f_pred, dim=1)
+        f_js = jensen_shannon(f_sm, o_sm)
+        f_js_t = torch.concatenate([f_js_t, f_js])
+
+        b_video = fill_with_keep(keep_backward, video)
+        b_pred = model.predict_video(b_video)
+        b_sm = F.softmax(b_pred, dim=1)
+        b_js = jensen_shannon(b_sm, o_sm)
+        b_js_t = torch.concatenate([b_js_t, b_js])
+    return {
+        'forward': f_js_t,
+        'backward': b_js_t
+    }
 
 
 if __name__ == "__main__":
