@@ -67,12 +67,19 @@ def emb_facilitylocation(emb, k=16):
     keyframe_indices = selector.ranking
     return keyframe_indices
 
+'''
+forward: forward or backward selection. not applicable for method=facility
+'''
 def dataset_curves(dataset, model, method, forward = True):
-    level1_file = os.path.join(CONF.LEVEL_1_PATH, f'{dataset}_{model}.h5')
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, method)
     os.makedirs(out_file, exist_ok=True)
-    out_file = os.path.join(out_file, f'curves_{dataset}_{model}.h5') 
+    if method!='facility':
+        ward = 'forward' if forward else 'backward'
+        out_file = os.path.join(out_file, f'curves_{dataset}_{model}_{ward}.h5') 
+    else:
+        out_file = os.path.join(out_file, f'curves_{dataset}_{model}.h5') 
+
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model)
@@ -86,17 +93,17 @@ def dataset_curves(dataset, model, method, forward = True):
             L = video.size(2)
 
             if method in ['greedy','foolish','brute']:
-                greedy_js = get_greedy_js(video, model, forward)
+                greedy_js = get_greedy_js(video, model, forward).cpu().numpy()
             if method == 'greedy':
                 if forward: 
-                    idx = torch.argsort(greedy_js)
+                    idx = np.argsort(greedy_js)
                 else:
-                    idx = torch.argsort(-1*greedy_js)
+                    idx = np.argsort(-1*greedy_js)
             if method == 'foolish':
                 if forward: 
-                    idx = torch.argsort(-1*greedy_js)
+                    idx = np.argsort(-1*greedy_js)
                 else:
-                    idx = torch.argsort(greedy_js)
+                    idx = np.argsort(greedy_js)
             if method == 'random':
                 idx = list(range(L))
                 random.shuffle(idx)
@@ -112,13 +119,13 @@ def dataset_curves(dataset, model, method, forward = True):
                 o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
                 idx = func.brute(video, best_idx, model, o_sm) 
 
-            sim_ar, js_ar = get_video_curve(model, video, idx.cpu())
+            sim_ar, js_ar = get_video_curve(model, video, idx)
 
             # import matplotlib.pyplot as plt
             # plt.plot(js_ar_f)
             # plt.plot(js_ar_b)
             d={
-                fname: {'sim_ar': torch.tensor(sim_ar), 'js_ar': torch.tensor(js_ar)}
+                fname: {'sim_ar': torch.tensor(sim_ar), 'js_ar': torch.tensor(js_ar), 'idx': torch.tensor(idx)}
             }
 
             func.save_dict_to_h5(f, d)
