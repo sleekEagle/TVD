@@ -139,6 +139,7 @@ def dataset_curves(dataset, model, method, forward = True):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model)
 
+    print("************************print test**********")
     with h5py.File(out_file, "w") as f:
         for i in range(len(path_list)):
             print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
