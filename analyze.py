@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 import CONF
 
-def get_video_curve(model, video, idx):
+def get_video_curve(model, video, idx, forward):
     o_sm = F.softmax(model.predict_video(video),dim=1)
     o_feat = model.get_features()
     L = video.size(2)
@@ -72,12 +72,10 @@ def brute(video, model, greedy_js, forward):
     o_logits = model.predict_video(video)
     o_sm = F.softmax(o_logits, dim=1)
 
-    if forward:
-        idx_sort = np.argsort(greedy_js)
-    else:
-        idx_sort = np.argsort(-1*greedy_js)
+    idx_sort = np.argsort(greedy_js)
+    best_idx = int(idx_sort[0])
 
-    def get_best_idx(model, video, idx_present, o_sm):
+    def get_best_idx_forward(model, video, idx_present, o_sm):
         idx_left = list(set(range(video.size(2)))-set(idx_present))
         pred_sm_ar = torch.empty(0).to(model.device)
         for idx in idx_left:
@@ -94,11 +92,34 @@ def brute(video, model, greedy_js, forward):
         bi = idx_left[torch.argmin(js)]
         return bi
     
-    sel_idx = [int(best_idx)]
+    def get_best_idx_backward(model, video, idx_remove, o_sm):
+        idx_left = list(set(range(video.size(2)))-set(idx_remove))
+        pred_sm_ar = torch.empty(0).to(model.device)
+        for idx in idx_left:
+            remove = idx_remove + [idx]
+            keep = list(set(range(video.size(2)))-set(remove))
+            tofill, fillwith = func.past_fill(keep)
+            fvideo = video.clone()
+            func.fill_video(tofill, fillwith, fvideo)
+
+            pred = model.predict_video(fvideo)
+            pred_sm = F.softmax(pred,dim=1)
+            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
+
+        js = func.jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
+        bi = idx_left[torch.argmin(js)]
+        return bi
+    
+    sel_idx = [best_idx]
     for _ in range(video.size(2)-2):
-        bi = get_best_idx(model, video, sel_idx, o_sm)
+        if forward:
+            bi = get_best_idx_forward(model, video, sel_idx, o_sm)
+        else:
+            bi = get_best_idx_backward(model, video, sel_idx, o_sm)
         sel_idx += [bi]
     sel_idx += list(set(range(video.size(2))) - set(sel_idx))
+
+
 
     return sel_idx
 
@@ -152,7 +173,7 @@ def dataset_curves(dataset, model, method, forward = True):
             elif method == 'brute':
                 idx = brute(video, model, greedy_js, forward) 
 
-            sim_ar, js_ar = get_video_curve(model, video, idx)
+            sim_ar, js_ar = get_video_curve(model, video, idx, forward)
 
             # import matplotlib.pyplot as plt
             # plt.plot(js_ar_f)
@@ -164,4 +185,4 @@ def dataset_curves(dataset, model, method, forward = True):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'brute', forward=True)
+    dataset_curves('ucf101', 'r3d-18', 'brute', forward=False)
