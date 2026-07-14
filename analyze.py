@@ -187,4 +187,4 @@ def dataset_curves(dataset, model, method, forward = True):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'brute', forward=False)
+    dataset_curves('ucf101', 'r3d-18', 'foolish', forward=False)
