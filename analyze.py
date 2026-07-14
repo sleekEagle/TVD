@@ -34,33 +34,40 @@ def get_video_curve(model, video, idx):
     
     return sim_ar, js_ar
 
-def get_greedy_js(video, model):
+def get_greedy_js(video, model, forward):
     L = video.size(2)
     o_logits = model.predict_video(video)
     o_sm = F.softmax(o_logits, dim=1)
 
-    f_js_t, b_js_t = torch.empty(0).to(model.device), torch.empty(0).to(model.device)
+    js_t = torch.empty(0).to(model.device)
     for i in range(L):
-        keep_forward = [i]
-        keep_backward = [idx for idx in range(L) if idx!=i]
+        if forward:
+            keep_forward = [i]
+            video = func.fill_with_keep(keep_forward, video)
+            pred = model.predict_video(video)
+            sm = F.softmax(pred, dim=1)
+            js = func.jensen_shannon(sm, o_sm)
+            js_t = torch.concatenate([js_t, js])
+        else:
+            keep_backward = [idx for idx in range(L) if idx!=i]
+            video = func.fill_with_keep(keep_backward, video)
+            pred = model.predict_video(video)
+            sm = F.softmax(pred, dim=1)
+            js = func.jensen_shannon(sm, o_sm)
+            js_t = torch.concatenate([js_t, js])
+    return js_t
 
-        f_video = func.fill_with_keep(keep_forward, video)
-        f_pred = model.predict_video(f_video)
-        f_sm = F.softmax(f_pred, dim=1)
-        f_js = func.jensen_shannon(f_sm, o_sm)
-        f_js_t = torch.concatenate([f_js_t, f_js])
+def emb_facilitylocation(emb, k=16):
+    from apricot import FacilityLocationSelection
+    selector = FacilityLocationSelection(
+        n_samples=k,
+        metric="cosine"
+    )
+    selector.fit(emb)
+    keyframe_indices = selector.ranking
+    return keyframe_indices
 
-        b_video = func.fill_with_keep(keep_backward, video)
-        b_pred = model.predict_video(b_video)
-        b_sm = F.softmax(b_pred, dim=1)
-        b_js = func.jensen_shannon(b_sm, o_sm)
-        b_js_t = torch.concatenate([b_js_t, b_js])
-    return {
-        'forward': f_js_t,
-        'backward': b_js_t
-    }
-
-def dataset_curves(dataset, model, method):
+def dataset_curves(dataset, model, method, forward = True):
     level1_file = os.path.join(CONF.LEVEL_1_PATH, f'{dataset}_{model}.h5')
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, method)
@@ -79,40 +86,42 @@ def dataset_curves(dataset, model, method):
             L = video.size(2)
 
             if method in ['greedy','foolish','brute']:
-                greedy_js = get_greedy_js(video, model)
+                greedy_js = get_greedy_js(video, model, forward)
             if method == 'greedy':
-                idx_f = torch.argsort(greedy_js['forward'])
-                idx_b = torch.argsort(-1*greedy_js['backward'])
+                if forward: 
+                    idx = torch.argsort(greedy_js)
+                else:
+                    idx = torch.argsort(-1*greedy_js)
             if method == 'foolish':
-                idx_f = torch.argsort(-1*greedy_js['forward'])
-                idx_b = torch.argsort(greedy_js['backward'])
+                if forward: 
+                    idx = torch.argsort(-1*greedy_js)
+                else:
+                    idx = torch.argsort(greedy_js)
             if method == 'random':
                 idx = list(range(L))
                 random.shuffle(idx)
             elif method == 'facility': # facility location
-                emb = []
+                emb = torch.empty(0)
                 for i in range(L):
-                    emb.append(data[str(i)]['feat'][None,:])
-                emb = np.concatenate(emb, axis=0)
-                idx = func.emb_facilitylocation(emb)
+                    _ = model.predict_video(video)
+                    emb = torch.concatenate([emb, model.get_features()[None,:].to(emb.device)], dim=0)
+                idx = emb_facilitylocation(emb)
             elif method == 'brute':
                 best_idx = torch.argmin(js)
                 o_logits = data['full']['logits']
                 o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
                 idx = func.brute(video, best_idx, model, o_sm) 
 
-            sim_ar_f, js_ar_f = get_video_curve(model, video, idx_f.cpu())
-            sim_ar_b, js_ar_b = get_video_curve(model, video, idx_b.cpu())
+            sim_ar, js_ar = get_video_curve(model, video, idx.cpu())
 
             # import matplotlib.pyplot as plt
             # plt.plot(js_ar_f)
             # plt.plot(js_ar_b)
             d={
-                fname: {'sim_ar_f': torch.tensor(sim_ar_f), 'js_ar_f': torch.tensor(js_ar_f),
-                        'sim_ar_b': torch.tensor(sim_ar_b), 'js_ar_b': torch.tensor(js_ar_b)}
+                fname: {'sim_ar': torch.tensor(sim_ar), 'js_ar': torch.tensor(js_ar)}
             }
 
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'greedy')
+    dataset_curves('ucf101', 'r3d-18', 'greedy', forward=True)

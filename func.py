@@ -144,15 +144,6 @@ def jensen_shannon(p, q, eps=1e-10):
     
     return 0.5 * (kl_pm + kl_qm)
 
-def emb_facilitylocation(emb, k=16):
-    from apricot import FacilityLocationSelection
-    selector = FacilityLocationSelection(
-        n_samples=k,
-        metric="cosine"
-    )
-    selector.fit(emb)
-    keyframe_indices = selector.ranking
-    return keyframe_indices
 
 def get_js_video(data):
     o_logits = data['full']['logits']
