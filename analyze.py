@@ -80,16 +80,12 @@ def dataset_curves(dataset, model, method):
 
             if method in ['greedy','foolish','brute']:
                 greedy_js = get_greedy_js(video, model)
-                idx_f = torch.argsort(greedy_js['forward'])
-                idx_b = torch.argsort(greedy_js['backward'])
             if method == 'greedy':
-                idx = {}
-                for k in greedy_js:
-                    idx[k] = torch.argsort(greedy_js[k])
+                idx_f = torch.argsort(greedy_js['forward'])
+                idx_b = torch.argsort(-1*greedy_js['backward'])
             if method == 'foolish':
-                idx = {}
-                for k in greedy_js:
-                    idx[k] = torch.argsort(-1*greedy_js[k])
+                idx_f = torch.argsort(-1*greedy_js['forward'])
+                idx_b = torch.argsort(greedy_js['backward'])
             if method == 'random':
                 idx = list(range(L))
                 random.shuffle(idx)
@@ -107,12 +103,16 @@ def dataset_curves(dataset, model, method):
 
             sim_ar_f, js_ar_f = get_video_curve(model, video, idx_f.cpu())
             sim_ar_b, js_ar_b = get_video_curve(model, video, idx_b.cpu())
+
+            # import matplotlib.pyplot as plt
+            # plt.plot(js_ar_f)
+            # plt.plot(js_ar_b)
             d={
                 fname: {'sim_ar_f': torch.tensor(sim_ar_f), 'js_ar_f': torch.tensor(js_ar_f),
                         'sim_ar_b': torch.tensor(sim_ar_b), 'js_ar_b': torch.tensor(js_ar_b)}
             }
 
             func.save_dict_to_h5(f, d)
-            
+
 if __name__ == "__main__":
     dataset_curves('ucf101', 'r3d-18', 'greedy')
