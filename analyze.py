@@ -120,6 +120,9 @@ def brute(video, model, greedy_js, forward):
         sel_idx += [bi]
     sel_idx += list(set(range(video.size(2))) - set(sel_idx))
 
+    if not forward: # most important must be the first
+        sel_idx = sel_idx[::-1]
+
     return sel_idx
 
 
