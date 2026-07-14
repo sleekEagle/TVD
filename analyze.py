@@ -43,15 +43,15 @@ def get_greedy_js(video, model, forward):
     for i in range(L):
         if forward:
             keep_forward = [i]
-            video = func.fill_with_keep(keep_forward, video)
-            pred = model.predict_video(video)
+            filled_video = func.fill_with_keep(keep_forward, video)
+            pred = model.predict_video(filled_video)
             sm = F.softmax(pred, dim=1)
             js = func.jensen_shannon(sm, o_sm)
             js_t = torch.concatenate([js_t, js])
         else:
             keep_backward = [idx for idx in range(L) if idx!=i]
-            video = func.fill_with_keep(keep_backward, video)
-            pred = model.predict_video(video)
+            filled_video = func.fill_with_keep(keep_backward, video)
+            pred = model.predict_video(filled_video)
             sm = F.softmax(pred, dim=1)
             js = func.jensen_shannon(sm, o_sm)
             js_t = torch.concatenate([js_t, js])
@@ -66,6 +66,42 @@ def emb_facilitylocation(emb, k=16):
     selector.fit(emb)
     keyframe_indices = selector.ranking
     return keyframe_indices
+
+def brute(video, model, greedy_js, forward):
+    L = video.size(2)
+    o_logits = model.predict_video(video)
+    o_sm = F.softmax(o_logits, dim=1)
+
+    if forward:
+        idx_sort = np.argsort(greedy_js)
+    else:
+        idx_sort = np.argsort(-1*greedy_js)
+
+    def get_best_idx(model, video, idx_present, o_sm):
+        idx_left = list(set(range(video.size(2)))-set(idx_present))
+        pred_sm_ar = torch.empty(0).to(model.device)
+        for idx in idx_left:
+            keep = idx_present + [idx]
+            tofill, fillwith = func.past_fill(keep)
+            fvideo = video.clone()
+            func.fill_video(tofill, fillwith, fvideo)
+
+            pred = model.predict_video(fvideo)
+            pred_sm = F.softmax(pred,dim=1)
+            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
+
+        js = func.jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
+        bi = idx_left[torch.argmin(js)]
+        return bi
+    
+    sel_idx = [int(best_idx)]
+    for _ in range(video.size(2)-2):
+        bi = get_best_idx(model, video, sel_idx, o_sm)
+        sel_idx += [bi]
+    sel_idx += list(set(range(video.size(2))) - set(sel_idx))
+
+    return sel_idx
+
 
 '''
 forward: forward or backward selection. not applicable for method=facility
@@ -114,10 +150,7 @@ def dataset_curves(dataset, model, method, forward = True):
                     emb = torch.concatenate([emb, model.get_features()[None,:].to(emb.device)], dim=0)
                 idx = emb_facilitylocation(emb)
             elif method == 'brute':
-                best_idx = torch.argmin(js)
-                o_logits = data['full']['logits']
-                o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
-                idx = func.brute(video, best_idx, model, o_sm) 
+                idx = brute(video, model, greedy_js, forward) 
 
             sim_ar, js_ar = get_video_curve(model, video, idx)
 
@@ -131,4 +164,4 @@ def dataset_curves(dataset, model, method, forward = True):
             func.save_dict_to_h5(f, d)
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'greedy', forward=True)
+    dataset_curves('ucf101', 'r3d-18', 'brute', forward=True)

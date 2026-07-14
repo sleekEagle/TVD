@@ -159,33 +159,6 @@ def get_js_video(data):
 
     return js
 
-def brute(video, best_idx, model, o_sm):
-    def get_best_idx(model, video, idx_present, o_sm):
-        idx_left = list(set(range(video.size(2)))-set(idx_present))
-        pred_sm_ar = torch.empty(0).to(model.device)
-        for idx in idx_left:
-            keep = idx_present + [idx]
-            tofill, fillwith = past_fill(keep)
-            fvideo = video.clone()
-            fill_video(tofill, fillwith, fvideo)
-
-            pred = model.predict_video(fvideo)
-            pred_sm = F.softmax(pred,dim=1)
-            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
-
-        js = jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
-        bi = idx_left[torch.argmin(js)]
-        return bi
-    
-    sel_idx = [int(best_idx)]
-    for _ in range(video.size(2)-2):
-        bi = get_best_idx(model, video, sel_idx, o_sm)
-        sel_idx += [bi]
-    sel_idx += list(set(range(video.size(2))) - set(sel_idx))
-
-    return sel_idx
-
-
 
 
 if __name__ == "__main__":
