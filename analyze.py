@@ -9,6 +9,7 @@ import h5py
 import torch.nn.functional as F
 import numpy as np
 import CONF
+from tqdm import tqdm
 
 def get_video_curve(model, video, idx, forward):
     o_sm = F.softmax(model.predict_video(video),dim=1)
@@ -141,8 +142,8 @@ def dataset_curves(dataset, model, method, forward = True):
 
     print("************************print test**********")
     with h5py.File(out_file, "w") as f:
-        for i in range(len(path_list)):
-            print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
+        for i in tqdm(range(len(path_list))):
+            # print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
 
             video = model.get_video(path_list[i])
             fname = os.path.basename(path_list[i])
