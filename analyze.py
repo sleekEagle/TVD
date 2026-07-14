@@ -119,8 +119,6 @@ def brute(video, model, greedy_js, forward):
         sel_idx += [bi]
     sel_idx += list(set(range(video.size(2))) - set(sel_idx))
 
-
-
     return sel_idx
 
 
@@ -143,7 +141,7 @@ def dataset_curves(dataset, model, method, forward = True):
 
     with h5py.File(out_file, "w") as f:
         for i in range(len(path_list)):
-            print(f'{i} of {len(path_list)} is done.', end='\r')
+            print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
 
             video = model.get_video(path_list[i])
             fname = os.path.basename(path_list[i])
