@@ -4,6 +4,7 @@ import numpy as np
 import h5py
 import torch
 import torch.nn.functional as F
+import json
 
 def get_pred(model, path):
     fname = os.path.basename(path)
@@ -120,6 +121,17 @@ def save_dict_to_h5(group, dictionary):
         elif isinstance(value, str):
             # save string as attribute
             group.attrs[key] = value
+
+def load_jsonl_to_dict(filepath):
+    """Load JSON Lines file into a dictionary keyed by filename"""
+    data = {}
+    with open(filepath, 'r') as f:
+        for line in f:
+            if line.strip():  # Skip empty lines
+                entry = json.loads(line)
+                k = list(entry.keys())[0]
+                data[k] = entry[k]
+    return data
 
 
 #****************************************************************************************************************

@@ -131,16 +131,7 @@ def brute(video, model, greedy_js, forward):
 forward: forward or backward selection. not applicable for method=facility
 '''
 
-def load_jsonl_to_dict(filepath):
-    """Load JSON Lines file into a dictionary keyed by filename"""
-    data = {}
-    with open(filepath, 'r') as f:
-        for line in f:
-            if line.strip():  # Skip empty lines
-                entry = json.loads(line)
-                k = list(entry.keys())[0]
-                data[k] = entry[k]
-    return data
+
 
 def dataset_curves(dataset, model, method, forward = True):
     out_path = CONF.OUT_PATH
@@ -158,7 +149,7 @@ def dataset_curves(dataset, model, method, forward = True):
 
     # resume from earlier file
     if os.path.exists(out_file):
-        existing_data = load_jsonl_to_dict(out_file)
+        existing_data = func.load_jsonl_to_dict(out_file)
     else:
         existing_data = {}
 
@@ -215,4 +206,4 @@ def dataset_curves(dataset, model, method, forward = True):
             f.flush()
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'brute', forward=False)
+    dataset_curves('ucf101', 'mc3-18', 'greedy', forward=True)

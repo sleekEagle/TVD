@@ -19,26 +19,27 @@ def calc_auc(points):
 dir_path = CONF.OUT_PATH
 def eval_curves(dataset, model, method, forward):
     ward = 'forward' if forward else 'backward'
-    curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}_{ward}.h5')
+    curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}_{ward}.jsonl')
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
 
     js_auc_avg, sim_auc_avg = 0,0
-    with h5py.File(curve_file, "r") as f:
-        for path in path_list:
-            fname = os.path.basename(path)
-            g = f[fname]
-            js_ar = g['js_ar'][:]
-            sim_ar = g['sim_ar'][:]
 
-            # normalize 
-            # sim_ar = (sim_ar-sim_ar.min())/(sim_ar.max()-sim_ar.min())
-            # js_ar = (js_ar-js_ar.min())/(js_ar.max()-js_ar.min())
+    data = func.load_jsonl_to_dict(curve_file)
+    for path in path_list:
+        fname = os.path.basename(path)
+        g = data[fname]
+        js_ar = g['js_ar']
+        sim_ar = g['sim_ar']
 
-            js_auc = calc_auc(js_ar)
-            sim_auc = calc_auc(sim_ar)
+        # normalize 
+        # sim_ar = (sim_ar-sim_ar.min())/(sim_ar.max()-sim_ar.min())
+        # js_ar = (js_ar-js_ar.min())/(js_ar.max()-js_ar.min())
 
-            js_auc_avg += js_auc
-            sim_auc_avg += sim_auc
+        js_auc = calc_auc(js_ar)
+        sim_auc = calc_auc(sim_ar)
+
+        js_auc_avg += js_auc
+        sim_auc_avg += sim_auc
 
     js_auc_avg /= len(path_list)
     sim_auc_avg /= len(path_list)
@@ -71,5 +72,4 @@ def eval_compression_quality(dataset, model, method):
 
 
 if __name__ == "__main__":
-    eval_curves('ucf101', 'mc3-18', 'brute', forward=False)
-    pass
+    eval_curves('ucf101', 'mc3-18', 'greedy', forward=False)
