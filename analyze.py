@@ -157,7 +157,10 @@ def dataset_curves(dataset, model, method, forward = True):
     model = get_model.get_model(dataset, model)
 
     # resume from earlier file
-    existing_data = load_jsonl_to_dict(out_file)
+    if os.path.exists(out_file):
+        existing_data = load_jsonl_to_dict(out_file)
+    else:
+        existing_data = {}
 
     with open(out_file, 'a') as f:
         for i in tqdm(range(len(path_list))):
