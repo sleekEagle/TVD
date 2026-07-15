@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 import CONF
 from tqdm import tqdm
+import json
 
 def get_video_curve(model, video, idx, forward):
     o_sm = F.softmax(model.predict_video(video),dim=1)
@@ -129,27 +130,44 @@ def brute(video, model, greedy_js, forward):
 '''
 forward: forward or backward selection. not applicable for method=facility
 '''
+
+def load_jsonl_to_dict(filepath):
+    """Load JSON Lines file into a dictionary keyed by filename"""
+    data = {}
+    with open(filepath, 'r') as f:
+        for line in f:
+            if line.strip():  # Skip empty lines
+                entry = json.loads(line)
+                k = list(entry.keys())[0]
+                data[k] = entry[k]
+    return data
+
 def dataset_curves(dataset, model, method, forward = True):
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, method)
     os.makedirs(out_file, exist_ok=True)
     if method!='facility':
         ward = 'forward' if forward else 'backward'
-        out_file = os.path.join(out_file, f'curves_{dataset}_{model}_{ward}.h5') 
+        out_file = os.path.join(out_file, f'curves_{dataset}_{model}_{ward}.jsonl') 
     else:
-        out_file = os.path.join(out_file, f'curves_{dataset}_{model}.h5') 
+        out_file = os.path.join(out_file, f'curves_{dataset}_{model}.jsonl') 
 
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model)
 
-    with h5py.File(out_file, "w") as f:
+    # resume from earlier file
+    existing_data = load_jsonl_to_dict(out_file)
+
+    with open(out_file, 'a') as f:
         for i in tqdm(range(len(path_list))):
             # print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
 
             video = model.get_video(path_list[i])
             fname = os.path.basename(path_list[i])
             L = video.size(2)
+            
+            if fname in existing_data: continue
 
             if method in ['greedy','foolish','brute']:
                 greedy_js = get_greedy_js(video, model, forward).cpu().numpy()
@@ -180,11 +198,18 @@ def dataset_curves(dataset, model, method, forward = True):
             # import matplotlib.pyplot as plt
             # plt.plot(js_ar_f)
             # plt.plot(js_ar_b)
+            if isinstance(sim_ar, np.ndarray):
+                sim_ar = sim_ar.tolist()
+            if isinstance(js_ar, np.ndarray):
+                js_ar = js_ar.tolist()
+            if isinstance(idx, np.ndarray):
+                idx = idx.tolist()
             d={
-                fname: {'sim_ar': torch.tensor(sim_ar), 'js_ar': torch.tensor(js_ar), 'idx': torch.tensor(idx)}
+                fname: {'sim_ar': sim_ar, 'js_ar': js_ar, 'idx': idx}
             }
 
-            func.save_dict_to_h5(f, d)
+            f.write(json.dumps(d) + '\n')
+            f.flush()
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'foolish', forward=False)
+    dataset_curves('ucf101', 'mc3-18', 'brute', forward=False)

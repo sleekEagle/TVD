@@ -71,5 +71,5 @@ def eval_compression_quality(dataset, model, method):
 
 
 if __name__ == "__main__":
-    eval_curves('ucf101', 'mc3-18', 'greedy', forward=True)
+    eval_curves('ucf101', 'mc3-18', 'brute', forward=False)
     pass
