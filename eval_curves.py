@@ -75,18 +75,22 @@ def eval_compression_quality(dataset, model, method, forward):
 
 def eval_acc_comp(dataset, model, method, forward):
     COMP = {
+        1e-1: 0,
+        1e-2: 0,
         1e-3: 0,
         5e-4: 0,
         1e-4: 0,
         5e-5: 0,
-        1e-5: 0,
+        1e-5: 0
     }
     ACC = {
+        1e-1: 0,
+        1e-2: 0,
         1e-3: 0,
         5e-4: 0,
         1e-4: 0,
         5e-5: 0,
-        1e-5: 0,
+        1e-5: 0
     }
     
     ward = 'forward' if forward else 'backward'
@@ -95,7 +99,6 @@ def eval_acc_comp(dataset, model, method, forward):
     model = get_model.get_model(dataset, model)
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    correct = 0
     for i in tqdm(range(len(path_list))):
         path = path_list[i]
         fname = os.path.basename(path)
@@ -126,4 +129,4 @@ def eval_acc_comp(dataset, model, method, forward):
     print(ACC)
 
 if __name__ == "__main__":
-    eval_acc_comp('ucf101', 'mc3-18', 'brute', forward=True)
+    eval_curves('ucf101', 'mc3-18', 'foolish', forward=False)

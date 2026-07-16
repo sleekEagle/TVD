@@ -1,7 +1,7 @@
 from dataloaders import data_paths
 from models import get_model
 import torch
-import random
+from tqdm import tqdm
 
 import os
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
@@ -11,8 +11,7 @@ def eval(dataset, model):
     model = get_model.get_model(dataset, model)
 
     correct = 0
-    for i in range(len(path_list)):
-        print(f'{i} of {len(path_list)} is done.', end='\r')
+    for i in tqdm(range(len(path_list))):
         video = model.get_video(path_list[i])
         pred = model.predict_video(video)        
         pred_cls = torch.argmax(pred,dim=1)
@@ -24,12 +23,12 @@ def eval(dataset, model):
 
 if __name__ == "__main__":
     # for ucf101 dataset
-    eval('ucf101', 'mc3-18')
+    # eval('ucf101', 'mc3-18') # 85.2498017446471
     # eval('ucf101', 'r3d-18')
 
     #for ssv2 dataset
     # eval('ssv2','tformer_hr')
-    # eval('ssv2','tformer_base')
+    eval('ssv2','tformer_base')
     # eval('ssv2','vjepa2')
 
     # for diving48  dataset
