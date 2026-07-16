@@ -28,8 +28,8 @@ if __name__ == "__main__":
 
     #for ssv2 dataset
     # eval('ssv2','tformer_hr')
-    eval('ssv2','tformer_base')
-    # eval('ssv2','vjepa2')
+    # eval('ssv2','tformer_base') # 47.701149425287355
+    eval('ssv2','vjepa2') # 67.43295019157088
 
     # for diving48  dataset
     # eval('diving48', 'vjepa2')
