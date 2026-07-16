@@ -24,12 +24,12 @@ def eval(dataset, model):
 if __name__ == "__main__":
     # for ucf101 dataset
     # eval('ucf101', 'mc3-18') # 85.2498017446471
-    # eval('ucf101', 'r3d-18')
+    eval('ucf101', 'r3d-18') #  81.52260111022997
 
     #for ssv2 dataset
     # eval('ssv2','tformer_hr')
     # eval('ssv2','tformer_base') # 47.701149425287355
-    eval('ssv2','vjepa2') # 67.43295019157088
+    # eval('ssv2','vjepa2') # 67.43295019157088
 
     # for diving48  dataset
     # eval('diving48', 'vjepa2')
