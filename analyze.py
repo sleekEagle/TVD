@@ -137,12 +137,11 @@ def dataset_curves(dataset, model, method, forward = True):
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, method)
     os.makedirs(out_file, exist_ok=True)
-    if method!='facility':
+    if method in ['random', 'facility']:
+        out_file = os.path.join(out_file, f'curves_{dataset}_{model}.jsonl') 
+    else:
         ward = 'forward' if forward else 'backward'
         out_file = os.path.join(out_file, f'curves_{dataset}_{model}_{ward}.jsonl') 
-    else:
-        out_file = os.path.join(out_file, f'curves_{dataset}_{model}.jsonl') 
-
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model)
@@ -206,4 +205,4 @@ def dataset_curves(dataset, model, method, forward = True):
             f.flush()
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'greedy', forward=True)
+    dataset_curves('ucf101', 'mc3-18', 'random', forward=True)

@@ -93,8 +93,11 @@ def eval_acc_comp(dataset, model, method, forward):
         1e-5: 0
     }
     
-    ward = 'forward' if forward else 'backward'
-    curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}_{ward}.jsonl')
+    if method in ['random', 'facility']:
+        curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}.jsonl')
+    else:
+        ward = 'forward' if forward else 'backward'
+        curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}_{ward}.jsonl')
     data = func.load_jsonl_to_dict(curve_file)
     model = get_model.get_model(dataset, model)
 
@@ -129,4 +132,4 @@ def eval_acc_comp(dataset, model, method, forward):
     print(ACC)
 
 if __name__ == "__main__":
-    eval_curves('ucf101', 'mc3-18', 'foolish', forward=False)
+    eval_acc_comp('ucf101', 'mc3-18', 'random', forward=False)

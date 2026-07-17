@@ -27,7 +27,7 @@ if __name__ == "__main__":
     eval('ucf101', 'r3d-18') #  81.52260111022997
 
     #for ssv2 dataset
-    # eval('ssv2','tformer_hr')
+    # eval('ssv2','tformer_hr') # 49.42528735632184
     # eval('ssv2','tformer_base') # 47.701149425287355
     # eval('ssv2','vjepa2') # 67.43295019157088
 
