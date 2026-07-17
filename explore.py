@@ -15,10 +15,24 @@ import torch
 import matplotlib.pyplot as plt
 import analyze
 
-def plot_JS_seq(dataset, model_name, fname):
+def plot_JS_seq(dataset, model_name, fname, forward):
     out_path = os.path.join(CONF.OUT_PATH, 'plots', 'JS_seq')
     os.makedirs(out_path, exist_ok=True)
     out_path_plot = os.path.join(out_path, f'{dataset}_{model_name}_{fname}.png')
+
+    ward = 'forward' if forward else 'backward'
+    methods = ['brute', 'greedy', 'foolish', 'facility', 'random']
+    js_ar = []
+    for meth in methods:
+        if meth in ['brute', 'greedy', 'foolish']:
+            stat_path = os.path.join(CONF.OUT_PATH,meth,f'curves_{dataset}_{model_name}_{ward}.jsonl')
+        else:
+            stat_path = os.path.join(CONF.OUT_PATH,meth,f'curves_{dataset}_{model_name}.jsonl')
+
+        data = func.load_jsonl_to_dict(stat_path)[fname]
+        js = data['js_ar']
+        js_ar.append(js)
+        
 
     level1_file = os.path.join(CONF.LEVEL_1_PATH, f'{dataset}_{model_name}.h5')
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
