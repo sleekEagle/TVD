@@ -23,7 +23,17 @@ def plot_JS_seq(dataset, model_name, fname, forward):
     ward = 'forward' if forward else 'backward'
     methods = ['brute', 'greedy', 'foolish', 'facility', 'random']
     js_ar = []
-    for meth in methods:
+
+    styles = {
+        'brute': {'marker': 'o', 'linestyle': '-'},
+        'greedy': {'marker': 's', 'linestyle': '--'},
+        'foolish': {'marker': '^', 'linestyle': '-.'},
+        'facility': {'marker': 'D', 'linestyle': ':'},
+        'random': {'marker': 'P', 'linestyle': '-'}
+    }
+    marker_loc = [5,5,5,5,5]
+    plt.figure(figsize=(8, 6))
+    for i,meth in enumerate(methods):
         if meth in ['brute', 'greedy', 'foolish']:
             stat_path = os.path.join(CONF.OUT_PATH,meth,f'curves_{dataset}_{model_name}_{ward}.jsonl')
         else:
@@ -32,44 +42,15 @@ def plot_JS_seq(dataset, model_name, fname, forward):
         data = func.load_jsonl_to_dict(stat_path)[fname]
         js = data['js_ar']
         js_ar.append(js)
-        
+        style = styles.get(meth, {'marker': 'o', 'linestyle': '-'})
+        plt.plot(js, label=meth, marker=style['marker'], 
+             linestyle=style['linestyle'], markersize=6, markevery=[marker_loc[i]])
 
-    level1_file = os.path.join(CONF.LEVEL_1_PATH, f'{dataset}_{model_name}.h5')
-    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    path = [pl for pl in path_list if os.path.basename(pl) == fname][0]
-    model = get_model.get_model(dataset, model_name)
-
-    data = func.get_h5_item(level1_file, fname)
-    video = model.get_video(path)
-    L = video.size(2)
-    js = func.get_js_video(data)
-
-    # lets compare greedy vs brute in the embedding space
-    # greedy
-    greedy_idx = torch.argsort(js)
-
-    # brute
-    best_idx = torch.argmin(js)
-    o_logits = data['full']['logits']
-    o_sm = F.softmax(torch.tensor(o_logits[None,:]), dim=1)
-    brute_idx = func.brute(video, best_idx, model, o_sm) 
-
-    assert brute_idx[0]==greedy_idx[0], 'brute and greedy does not match!'
-
-    def normalize(ar):
-        ar=np.array(ar)
-        ar = (ar-ar.min())/(ar.max()-ar.min())
-        return ar
-    
-    greedy_seq = analyze.get_video_curve(model, video, data, greedy_idx)[1]
-    brute_seq = analyze.get_video_curve(model, video, data, brute_idx)[1]
-
-    plt.figure(figsize=(8, 6))   
-    plt.plot(greedy_seq, label='Greedy')
-    plt.plot(brute_seq, label= 'Brute')
     plt.legend()
     plt.xlabel('Frame Number')
     plt.ylabel('JS Div')
+    plt.ylim(0,0.02)
+
     plt.savefig(out_path_plot, dpi=300)
     plt.show()
     pass
@@ -176,11 +157,9 @@ def js_vs_dist(dataset, model_name):
         file.write(f'Avg correlation coeff: {avg_corr}')
 
 
-        
-        
-
-
+    
 
 if __name__ == "__main__":
-    plot_JS_seq('ucf101', 'mc3-18', 'v_ApplyLipstick_g01_c02.avi')
+    plot_JS_seq('ucf101', 'mc3-18', 'v_PlayingFlute_g02_c01.avi', forward = True)
     # js_vs_dist('ucf101', 'mc3-18')
+    pass

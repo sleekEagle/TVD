@@ -24,7 +24,19 @@ class VJEPA2(nn.Module):
         for k in id2label:
             new_k = id2label[k].replace('[','').replace(']','').replace('\'','')
             self.label2id[new_k] = k
+        
+        self.features = {}
+        self.handle = self.model.pooler.self_attention_layers[2].mlp.fc2.register_forward_hook(self.hook_fn)
 
+    def hook_fn(self, module, input, output):
+        self.features['features'] = output.mean(dim=1).detach()
+        
+
+    def get_features(self):
+        return self.features['features'].squeeze()
+    
+    def remove_hook(self):
+        self.handle.remove()
 
     #input shape of x: 1,3,16,224,224
     def forward(self, x):
@@ -60,6 +72,15 @@ class TFORMER_b(nn.Module):
 
         self.processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2")
         self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2")
+
+    def hook_fn(self, module, input, output):
+        self.features['features'] = output.detach()
+
+    def get_features(self):
+        return self.features['features'].squeeze()
+    
+    def remove_hook(self):
+        self.handle.remove()
 
     def _load_video(self, video_path):
         """Load video and extract frames."""

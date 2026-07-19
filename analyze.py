@@ -205,4 +205,4 @@ def dataset_curves(dataset, model, method, forward = True):
             f.flush()
 
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'mc3-18', 'facility', forward=True)
+    dataset_curves('ssv2', 'vjepa2', 'random', forward=True)

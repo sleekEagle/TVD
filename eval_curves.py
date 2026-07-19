@@ -19,8 +19,11 @@ def calc_auc(points):
 
 dir_path = CONF.OUT_PATH
 def eval_curves(dataset, model, method, forward):
-    ward = 'forward' if forward else 'backward'
-    curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}_{ward}.jsonl')
+    if method in ['greedy', 'foolish', 'brute']:
+        ward = 'forward' if forward else 'backward'
+        curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}_{ward}.jsonl')
+    else:
+        curve_file = os.path.join(dir_path, method, f'curves_{dataset}_{model}.jsonl')
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
 
     js_auc_avg, sim_auc_avg = 0,0
@@ -132,4 +135,4 @@ def eval_acc_comp(dataset, model, method, forward):
     print(ACC)
 
 if __name__ == "__main__":
-    eval_acc_comp('ucf101', 'mc3-18', 'random', forward=False)
+    eval_curves('ucf101', 'r3d-18', 'random', forward=False)
