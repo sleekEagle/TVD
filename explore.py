@@ -169,7 +169,7 @@ def plot_frames(dataset, model_name, fname, forward, thr=1e-3):
     data = func.load_jsonl_to_dict(stat_path)[fname]
     js = np.array(data['js_ar'])
     idx = min(np.argwhere(js<thr))
-    frames = data['idx'][:int(idx[0])]
+    frames = data['idx'][:int(idx[0])+1]
     print(f'Frames: {frames}')
 
     model = get_model.get_model(dataset, model_name)
@@ -203,6 +203,6 @@ def plot_frames(dataset, model_name, fname, forward, thr=1e-3):
 
 
 if __name__ == "__main__":
-    plot_frames('ucf101', 'mc3-18', 'v_BalanceBeam_g03_c04.avi', forward = True)
+    plot_frames('ucf101', 'mc3-18', 'v_CleanAndJerk_g07_c01.avi', forward = True)
     # js_vs_dist('ucf101', 'mc3-18')
     pass
