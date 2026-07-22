@@ -135,5 +135,5 @@ def eval_acc_comp(dataset, model, method, forward):
     print(ACC)
 
 if __name__ == "__main__":
-    eval_curves('ucf101', 'r3d-18', 'foolish', forward=False)
-    eval_acc_comp('ucf101', 'r3d-18', 'foolish', forward=False)
+    eval_curves('ucf101', 'r3d-18', 'greedy', forward=False)
+    eval_acc_comp('ucf101', 'r3d-18', 'greedy', forward=False)

@@ -204,5 +204,38 @@ def dataset_curves(dataset, model, method, forward = True):
             f.write(json.dumps(d) + '\n')
             f.flush()
 
+
+def multiple_SFS(dataset, model, method, forward = True, thr=1e-3):
+    out_path = CONF.OUT_PATH
+    out_file = os.path.join(out_path, method)
+    os.makedirs(out_file, exist_ok=True)
+    if method in ['random', 'facility']:
+        out_path = os.path.join(out_file, f'multi_{dataset}_{model}.jsonl') 
+        data_path = os.path.join(out_file, f'curves_{dataset}_{model}.jsonl') 
+    else:
+        ward = 'forward' if forward else 'backward'
+        out_path = os.path.join(out_file, f'multi_{dataset}_{model}_{ward}.jsonl') 
+        data_path = os.path.join(out_file, f'curves_{dataset}_{model}_{ward}.jsonl')
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model)
+
+    with open(data_path, 'a') as f:
+        for i in tqdm(range(len(path_list))):
+            # print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
+
+            video = model.get_video(path_list[i])
+            fname = os.path.basename(path_list[i])
+            L = video.size(2)
+            data = func.load_jsonl_to_dict(data_path)[fname]
+            f_idx = data['idx']
+            js_ar = np.array(data['js_ar'])
+            n = np.argwhere(js_ar<thr).min()+1
+
+
+
+
+            pass
+
 if __name__ == "__main__":
-    dataset_curves('ucf101', 'r3d-18', 'random', forward=True)
+    multiple_SFS('ucf101', 'r3d-18', 'random', forward=True)
