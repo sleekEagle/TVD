@@ -127,6 +127,32 @@ def brute(video, model, greedy_js, forward):
     return sel_idx
 
 
+def find_sfs_single(video, model, existing, totry, o_sm):
+    js_vals = []
+    for i in range(len(totry)):
+        tt = [totry[i]]
+        fvideo = func.fill_with_keep(existing + tt, video, fill='past')
+        pred = model.predict_video(fvideo)
+        sm = F.softmax(pred, dim=1)
+        js = func.jensen_shannon(sm, o_sm)
+        js_vals.append(js.item())
+    return np.array(js_vals)
+
+def find_sfs_cummulative(video, model, existing, totry, o_sm, thr=1e-3):
+    for i in range(len(totry)+1):
+        if len(existing) +  len(totry[:i]) == 0:
+            continue
+        fvideo = func.fill_with_keep(existing + totry[:i], video, fill='past')
+        pred = model.predict_video(fvideo)
+        sm = F.softmax(pred, dim=1)
+        js = func.jensen_shannon(sm, o_sm)
+        if js<=thr:
+            return totry[:i]
+    return -1
+
+
+
+
 '''
 forward: forward or backward selection. not applicable for method=facility
 '''
@@ -205,7 +231,7 @@ def dataset_curves(dataset, model, method, forward = True):
             f.flush()
 
 
-def multiple_SFS(dataset, model, method, forward = True, thr=1e-3):
+def multiple_SFS(dataset, model, method, fname, forward = True, thr=1e-3):
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, method)
     os.makedirs(out_file, exist_ok=True)
@@ -218,24 +244,73 @@ def multiple_SFS(dataset, model, method, forward = True, thr=1e-3):
         data_path = os.path.join(out_file, f'curves_{dataset}_{model}_{ward}.jsonl')
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    base_list = [os.path.basename(p) for p in path_list]
+    path_idx = base_list.index(fname)
+    path = path_list[path_idx]
     model = get_model.get_model(dataset, model)
+    video = model.get_video(path)
+    L = video.size(2)
+    data = func.load_jsonl_to_dict(data_path)[fname]
+    f_idx = data['idx']
+    js_ar = np.array(data['js_ar'])
+    n = np.argwhere(js_ar<thr).min()+1
+    valid_idx = f_idx[:n]
+    other_idx = f_idx[n:]
 
-    with open(data_path, 'a') as f:
-        for i in tqdm(range(len(path_list))):
-            # print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
+    print(f'valid: {valid_idx}, other: {other_idx}')
+    print(f'***************************************************')
 
-            video = model.get_video(path_list[i])
-            fname = os.path.basename(path_list[i])
-            L = video.size(2)
-            data = func.load_jsonl_to_dict(data_path)[fname]
-            f_idx = data['idx']
-            js_ar = np.array(data['js_ar'])
-            n = np.argwhere(js_ar<thr).min()+1
+    L = video.size(2)
+    o_logits = model.predict_video(video)
+    o_sm = F.softmax(o_logits, dim=1)
+
+    l = len(valid_idx)
+    existing = []
+    new_idx = find_sfs_cummulative(video, model, existing , other_idx, o_sm)
+    if new_idx!=-1:
+        print(f'{existing} {existing + new_idx} length : {len(existing+new_idx)}')
+    else:
+        print('not found')
+
+    def get_replace_frames(video, model, valid_idx, other_idx, o_sm, skip_idx=-1):
+        replace = {}
+        for idx in valid_idx:
+            if idx == skip_idx: continue
+            existing = [i for i in valid_idx if i != idx]
+            js_list = find_sfs_single(video, model, existing, other_idx, o_sm)
+            other_idx = np.array(other_idx)
+            sel_idx = other_idx[np.array(js_list)<thr]
+            replace[idx] = sel_idx.tolist()
+        return replace
+    
+    rpl = get_replace_frames(video, model, valid_idx, other_idx, o_sm)
+    for k_frm in rpl:
+        for o_frm in rpl[k_frm]:
+            valid = valid_idx[:]
+            other = other_idx[:]
+            i1 = valid_idx.index(k_frm)
+            i2 = other_idx.index(o_frm)
+            valid[i1], other[i2] = other[i2], valid[i1]
+            get_replace_frames(video, model, valid, other, o_sm, skip_idx=o_frm)
+
+
+            
+        
+
+
+    pass
+
+    
 
 
 
 
-            pass
+
+
+
+
 
 if __name__ == "__main__":
-    multiple_SFS('ucf101', 'r3d-18', 'random', forward=True)
+    # multiple_SFS('ucf101', 'r3d-18', 'random', 'v_FrisbeeCatch_g04_c01.avi', forward=True)
+    dataset_curves('ssv2', 'tformer_base', 'random', forward=True)
+    pass
