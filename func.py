@@ -73,7 +73,7 @@ def fill_video(tofill, fillwith, video):
 
 def fill_with_keep(keep, video, fill='past'):
     if fill == 'past':
-        tofill, fillwith = past_fill(keep)
+        tofill, fillwith = past_fill(keep, video.size(2))
     fvideo = video.clone()
     fill_video(tofill, fillwith, fvideo)
     return fvideo
