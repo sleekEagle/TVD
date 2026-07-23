@@ -75,6 +75,12 @@ class TFORMER_b(nn.Module):
 
         self.features = {}
         self.handle = self.model.timesformer.layernorm.register_forward_hook(self.hook_fn)
+
+    def hook_fn(self, module, input, output):
+        self.features['features'] = output.mean(dim=1).detach()
+
+    def get_features(self):
+        return self.features['features'].squeeze()
     
     def remove_hook(self):
         self.handle.remove()
