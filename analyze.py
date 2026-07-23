@@ -312,5 +312,5 @@ def multiple_SFS(dataset, model, method, fname, forward = True, thr=1e-3):
 
 if __name__ == "__main__":
     # multiple_SFS('ucf101', 'r3d-18', 'random', 'v_FrisbeeCatch_g04_c01.avi', forward=True)
-    dataset_curves('ssv2', 'tformer_base', 'random', forward=True)
+    dataset_curves('ssv2', 'tformer_base', 'brute', forward=True)
     pass
