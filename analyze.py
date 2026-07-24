@@ -232,78 +232,83 @@ def dataset_curves(dataset, model, method, forward = True):
             f.flush()
 
 
-def multiple_SFS(dataset, model, method, fname, forward = True, thr=1e-3):
+def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, method)
-    os.makedirs(out_file, exist_ok=True)
     if method in ['random', 'facility']:
-        out_path = os.path.join(out_file, f'multi_{dataset}_{model}.jsonl') 
-        data_path = os.path.join(out_file, f'curves_{dataset}_{model}.jsonl') 
+        out_path = os.path.join(out_file, f'multi_{dataset}_{model_name}.jsonl') 
+        data_path = os.path.join(out_file, f'curves_{dataset}_{model_name}.jsonl') 
     else:
         ward = 'forward' if forward else 'backward'
-        out_path = os.path.join(out_file, f'multi_{dataset}_{model}_{ward}.jsonl') 
-        data_path = os.path.join(out_file, f'curves_{dataset}_{model}_{ward}.jsonl')
+        out_path = os.path.join(out_file, f'multi_{dataset}_{model_name}_{ward}.jsonl') 
+        data_path = os.path.join(out_file, f'curves_{dataset}_{model_name}_{ward}.jsonl')
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    base_list = [os.path.basename(p) for p in path_list]
-    path_idx = base_list.index(fname)
-    path = path_list[path_idx]
-    model = get_model.get_model(dataset, model)
-    video = model.get_video(path)
-    L = video.size(2)
-    data = func.load_jsonl_to_dict(data_path)[fname]
-    f_idx = data['idx']
-    js_ar = np.array(data['js_ar'])
-    n = np.argwhere(js_ar<thr).min()+1
-    valid_idx = f_idx[:n]
-    other_idx = f_idx[n:]
+    data = func.load_jsonl_to_dict(data_path)
+    model = get_model.get_model(dataset, model_name)
 
-    print(f'valid: {valid_idx}, other: {other_idx}')
-    print(f'***************************************************')
+    with open(out_path, 'a') as f:
+        for path in tqdm(path_list):
+            # base_list = [os.path.basename(p) for p in path_list]
+            # path_idx = base_list.index(fname)
+            # path = path_list[path_idx]
+            video = model.get_video(path)
+            L = video.size(2)
+            fname = os.path.basename(path)
+            f_idx = data[fname]['idx']
+            js_ar = np.array(data[fname]['js_ar'])
+            n = np.argwhere(js_ar<thr).min()
+            valid_idx = f_idx[:n+1]
+            other_idx = f_idx[n+1:]
 
-    L = video.size(2)
-    o_logits = model.predict_video(video)
-    o_sm = F.softmax(o_logits, dim=1)
+            o_logits = model.predict_video(video)
+            o_sm = F.softmax(o_logits, dim=1)
 
-    l = len(valid_idx)
-    existing = []
-    new_idx = find_sfs_cummulative(video, model, existing , other_idx, o_sm)
-    if new_idx!=-1:
-        print(f'{existing} {existing + new_idx} length : {len(existing+new_idx)}')
-    else:
-        print('not found')
+            new_idx = []
+            new_idx_list = []
+            used_idx_list = []
+            search_idx = other_idx
+            while True:
+                new_idx = find_sfs_cummulative(video, model, [] , search_idx, o_sm)
+                if new_idx==-1: break
 
-    def get_replace_frames(video, model, valid_idx, other_idx, o_sm, skip_idx=-1):
-        replace = {}
-        for idx in valid_idx:
-            if idx == skip_idx: continue
-            existing = [i for i in valid_idx if i != idx]
-            js_list = find_sfs_single(video, model, existing, other_idx, o_sm)
-            other_idx = np.array(other_idx)
-            sel_idx = other_idx[np.array(js_list)<thr]
-            replace[idx] = sel_idx.tolist()
-        return replace
+                used_idx_list += new_idx
+                search_idx = [item for item in other_idx if item not in used_idx_list]
+                new_idx_list.append(new_idx)
+
+            d={fname: new_idx_list}
+            f.write(json.dumps(d) + '\n')
+            f.flush()
+
+    # if new_idx!=-1:
+    #     print(f'{existing} {existing + new_idx} length : {len(existing+new_idx)}')
+    # else:
+    #     print('not found')
+
+    # def get_replace_frames(video, model, valid_idx, other_idx, o_sm, skip_idx=-1):
+    #     replace = {}
+    #     for idx in valid_idx:
+    #         if idx == skip_idx: continue
+    #         existing = [i for i in valid_idx if i != idx]
+    #         js_list = find_sfs_single(video, model, existing, other_idx, o_sm)
+    #         other_idx = np.array(other_idx)
+    #         sel_idx = other_idx[np.array(js_list)<thr]
+    #         replace[idx] = sel_idx.tolist()
+    #     return replace
     
-    rpl = get_replace_frames(video, model, valid_idx, other_idx, o_sm)
-    for k_frm in rpl:
-        for o_frm in rpl[k_frm]:
-            valid = valid_idx[:]
-            other = other_idx[:]
-            i1 = valid_idx.index(k_frm)
-            i2 = other_idx.index(o_frm)
-            valid[i1], other[i2] = other[i2], valid[i1]
-            get_replace_frames(video, model, valid, other, o_sm, skip_idx=o_frm)
-
-
-            
-        
-
-
-    pass
+    # rpl = get_replace_frames(video, model, valid_idx, other_idx, o_sm)
+    # for k_frm in rpl:
+    #     for o_frm in rpl[k_frm]:
+    #         valid = valid_idx[:]
+    #         other = other_idx[:]
+    #         i1 = valid_idx.index(k_frm)
+    #         i2 = other_idx.index(o_frm)
+    #         valid[i1], other[i2] = other[i2], valid[i1]
+    #         get_replace_frames(video, model, valid, other, o_sm, skip_idx=o_frm)
 
     
 
 if __name__ == "__main__":
-    # multiple_SFS('ucf101', 'r3d-18', 'random', 'v_FrisbeeCatch_g04_c01.avi', forward=True)
-    dataset_curves('ssv2', 'tformer_base', 'brute', forward=True)
+    dataset_multiple_SFS('ucf101', 'r3d-18', 'random', forward=True)
+    # dataset_curves('ssv2', 'tformer_base', 'brute', forward=True)
     pass
