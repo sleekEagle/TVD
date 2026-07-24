@@ -67,8 +67,11 @@ def future_fill(keep, l=16):
 #in-place fill video [1, 3, 16, 112, 112]
 def fill_video(tofill, fillwith, video):
     import torch
-    tofill_t = torch.tensor(tofill)
-    fillwith_t = torch.tensor(fillwith)
+    tofill_t = torch.tensor(tofill, device=video.device)
+    fillwith_t = torch.tensor(fillwith, device=video.device)
+    if max(tofill_t.max(),fillwith_t.max())>7:
+        pass
+    # print(f'{tofill_t} , {fillwith_t}')
     video[:, :, tofill_t] = video[:, :, fillwith_t].clone()
 
 def fill_with_keep(keep, video, fill='past'):

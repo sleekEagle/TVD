@@ -82,7 +82,7 @@ def brute(video, model, greedy_js, forward):
         pred_sm_ar = torch.empty(0).to(model.device)
         for idx in idx_left:
             keep = idx_present + [idx]
-            tofill, fillwith = func.past_fill(keep)
+            tofill, fillwith = func.past_fill(keep, video.size(2))
             fvideo = video.clone()
             func.fill_video(tofill, fillwith, fvideo)
 
@@ -183,6 +183,7 @@ def dataset_curves(dataset, model, method, forward = True):
             # print(f'{i} of {len(path_list)} is done.', end='\r', flush=True)
 
             video = model.get_video(path_list[i])
+            video = video.to(model.device)
             fname = os.path.basename(path_list[i])
             L = video.size(2)
             
@@ -301,14 +302,6 @@ def multiple_SFS(dataset, model, method, fname, forward = True, thr=1e-3):
     pass
 
     
-
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     # multiple_SFS('ucf101', 'r3d-18', 'random', 'v_FrisbeeCatch_g04_c01.avi', forward=True)

@@ -71,7 +71,7 @@ class TFORMER_b(nn.Module):
         self.num_frames = num_frames
 
         self.processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2")
-        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2")
+        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2").to(self.device)
 
         self.features = {}
         self.handle = self.model.timesformer.layernorm.register_forward_hook(self.hook_fn)
@@ -142,4 +142,4 @@ class TFORMER_hr(TFORMER_b):
         self.num_frames = num_frames
 
         self.processor = AutoImageProcessor.from_pretrained("facebook/timesformer-hr-finetuned-ssv2")
-        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-hr-finetuned-ssv2")
+        self.model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-hr-finetuned-ssv2").to(self.device)
