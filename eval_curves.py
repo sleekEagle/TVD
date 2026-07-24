@@ -134,6 +134,28 @@ def eval_acc_comp(dataset, model, method, forward):
     print(COMP)
     print(ACC)
 
+def eval_mul(dataset, model, method, forward):
+    if method in ['random', 'facility']:
+        mult_file = os.path.join(dir_path, method, f'multi_{dataset}_{model}.jsonl')
+    else:
+        ward = 'forward' if forward else 'backward'
+        mult_file = os.path.join(dir_path, method, f'multi_{dataset}_{model}_{ward}.jsonl')
+
+    data = func.load_jsonl_to_dict(mult_file)
+
+    n_sfs = []
+    k_list = []
+    for k in data:
+        n = len(data[k])+1
+        n_sfs.append(n)
+        k_list.append(k)
+
+    total = 12
+    n_sfs = np.array(n_sfs)
+    hist, bin_edges = np.histogram(n_sfs, bins=total, range=(1, total+1))
+
+
 if __name__ == "__main__":
-    eval_curves('ucf101', 'r3d-18', 'greedy', forward=False)
-    eval_acc_comp('ucf101', 'r3d-18', 'greedy', forward=False)
+    # eval_curves('ucf101', 'r3d-18', 'greedy', forward=False)
+    # eval_acc_comp('ucf101', 'r3d-18', 'greedy', forward=False)
+    eval_mul('ucf101', 'r3d-18', 'brute', forward=True)
