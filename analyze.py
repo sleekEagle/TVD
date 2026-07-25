@@ -100,7 +100,7 @@ def brute(video, model, greedy_js, forward):
         for idx in idx_left:
             remove = idx_remove + [idx]
             keep = list(set(range(video.size(2)))-set(remove))
-            tofill, fillwith = func.past_fill(keep)
+            tofill, fillwith = func.past_fill(keep, video.size(2))
             fvideo = video.clone()
             func.fill_video(tofill, fillwith, fvideo)
 
@@ -309,6 +309,6 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
     
 
 if __name__ == "__main__":
-    dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
-    # dataset_curves('ssv2', 'tformer_base', 'brute', forward=True)
+    # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
+    dataset_curves('ssv2', 'tformer_base', 'brute', forward=False)
     pass
