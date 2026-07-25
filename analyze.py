@@ -209,7 +209,7 @@ def dataset_curves(dataset, model, method, forward = True):
                 for i in range(L):
                     _ = model.predict_video(video)
                     emb = torch.concatenate([emb, model.get_features()[None,:].to(emb.device)], dim=0)
-                idx = emb_facilitylocation(emb)
+                idx = emb_facilitylocation(emb, video.size(2))
             elif method == 'brute':
                 idx = brute(video, model, greedy_js, forward) 
 
@@ -310,5 +310,5 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
 
 if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
-    dataset_curves('ssv2', 'tformer_base', 'brute', forward=False)
+    dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     pass
