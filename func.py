@@ -72,10 +72,16 @@ def fill_video(tofill, fillwith, video):
     video[:, :, tofill_t] = video[:, :, fillwith_t].clone()
 
 def fill_with_keep(keep, video, fill='past'):
-    if fill == 'past':
-        tofill, fillwith = past_fill(keep, video.size(2))
     fvideo = video.clone()
-    fill_video(tofill, fillwith, fvideo)
+    if fill in ['past','future']:
+        if fill == 'past':
+            tofill, fillwith = past_fill(keep, video.size(2))
+        if fill == 'future':
+            tofill, fillwith = future_fill(keep, video.size(2))
+        fill_video(tofill, fillwith, fvideo)
+    elif fill == 'zero':
+        z_idx = [i for i in range(video.size(2)) if i not in keep]
+        fvideo[:,:,z_idx,:] = 0
     return fvideo
 
 
@@ -174,8 +180,11 @@ def get_js_video(data):
 
 
 if __name__ == "__main__":
-    tofill, fillwith = future_fill([0,4,7,8,13,15])
+    # tofill, fillwith = future_fill([0,4,7,8,13,15])
     import torch
     video = torch.rand([1,3,16,112,112])
-    fvideo = video.clone()
-    fill_video(tofill, fillwith, fvideo)
+    keep = [0,1,2,3,8,9,10,11,12,13,14,15]
+    fvideo = fill_with_keep(keep, video, fill='zero')
+    pass
+    # fvideo = video.clone()
+    # fill_video(tofill, fillwith, fvideo)
