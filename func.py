@@ -95,7 +95,8 @@ def fill_video(tofill, fillwith, video):
     video[:, :, tofill_t] = video[:, :, fillwith_t].clone()
 
 def fill_with_keep(keep, video, fill='past'):
-    fvideo = video.clone()
+    if fill != 'interp':
+        fvideo = video.clone()
     if fill in ['past','future']:
         if fill == 'past':
             tofill, fillwith = past_fill(keep, video.size(2))
@@ -109,6 +110,9 @@ def fill_with_keep(keep, video, fill='past'):
         m_idx = [i for i in range(video.size(2)) if i not in keep]
         vid_mean = video[:,:,m_idx,:].mean(dim=(0,2,3,4),keepdim=True)
         fvideo[:,:,m_idx,:] = vid_mean
+    elif fill == 'interp':
+        fvideo = linear_interpolate_frames(video, keep)
+
     return fvideo
 
 
@@ -221,7 +225,10 @@ if __name__ == "__main__":
     model = get_model.get_model(dataset, 'mc3-18')
     video = model.get_video(path_list[102])
     keep = [0,1,2,3,8,9,10,11,12,13,14,15]
-    fvideo = linear_interpolate_frames(video, keep)
+    fvideo = fill_with_keep(keep, video, 'interp')
+
+    
+    fvideo_ = linear_interpolate_frames(video, keep)
 
     grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
     fgrid = make_grid(fvideo.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
