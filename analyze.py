@@ -280,6 +280,11 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
             f.write(json.dumps(d) + '\n')
             f.flush()
 
+def get_preds(video, model):
+    logits = model.predict_video(video)
+    sm = F.softmax(logits, dim=1)
+    f = model.get_features()
+    return sm, f
 
 def distribution_shift(dataset, model_name, forward = True, fill_method='past', thr=1e-3):
     out_path = CONF.OUT_PATH
@@ -289,6 +294,7 @@ def distribution_shift(dataset, model_name, forward = True, fill_method='past', 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     data = func.load_jsonl_to_dict(data_path)
     model = get_model.get_model(dataset, model_name)
+    N_ITR = 4
 
     for path in tqdm(path_list):
         video = model.get_video(path)
@@ -299,13 +305,30 @@ def distribution_shift(dataset, model_name, forward = True, fill_method='past', 
         n = np.argwhere(js_ar<thr).min()
         valid_idx = f_idx[:n+1]
 
-        logits = model.predict_video(video)
-        sm = F.softmax(logits, dim=1)
+        # original prediction
+        sm_orig, f_orig = get_preds(video, model)
 
-        f = model.get_features()
+        # remove random frames
+        all_idx = list(range(0,L))
+        used_idx = []
+        for n in range(N_ITR):
+            if len(used_idx) == 0:
+                rand_idx = random.randint(0,L-1)
+                used_idx.append(rand_idx)
+            else:
+                #expand the region
+                if max(used_idx)<L-1:
+                    used_idx.append(max(used_idx)+1)
+                elif min(used_idx)>0:
+                    used_idx.append(min(used_idx)-1)
+                    
+            keep_idx = [i for i in all_idx if i not in used_idx]
+            fvideo = func.fill_with_keep(keep_idx, video, 'past')
+            sm, f = get_preds(fvideo, model)
+            js_sm = func.jensen_shannon(sm, sm_orig)
+            similarity = F.cosine_similarity(f, f_orig, dim=0)
 
-
-
+            
 
 
 if __name__ == "__main__":
