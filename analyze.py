@@ -286,7 +286,7 @@ def get_preds(video, model):
     f = model.get_features()
     return sm, f
 
-def distribution_shift(dataset, model_name, forward = True, fill_method='past', thr=1e-3):
+def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, 'brute')
     ward = 'forward' if forward else 'backward'
@@ -295,6 +295,15 @@ def distribution_shift(dataset, model_name, forward = True, fill_method='past', 
     data = func.load_jsonl_to_dict(data_path)
     model = get_model.get_model(dataset, model_name)
     N_ITR = 4
+    methods = ['future', 'past', 'zero', 'mean', 'interp']
+    big_metrics = {}
+    for N in range(N_ITR):
+        method_js = {}
+        method_sim = {}
+        for m in methods:
+            method_js[m] = []
+            method_sim[m] = []
+        big_metrics[N] = {'js': method_js, 'sim': method_sim}
 
     for path in tqdm(path_list):
         video = model.get_video(path)
@@ -323,10 +332,21 @@ def distribution_shift(dataset, model_name, forward = True, fill_method='past', 
                     used_idx.append(min(used_idx)-1)
                     
             keep_idx = [i for i in all_idx if i not in used_idx]
-            fvideo = func.fill_with_keep(keep_idx, video, 'past')
-            sm, f = get_preds(fvideo, model)
-            js_sm = func.jensen_shannon(sm, sm_orig)
-            similarity = F.cosine_similarity(f, f_orig, dim=0)
+            
+            for method in methods:
+                fvideo = func.fill_with_keep(keep_idx, video, method)
+                sm, f = get_preds(fvideo, model)
+                js_sm = func.jensen_shannon(sm, sm_orig)
+                big_metrics[n]['js'][method].append(js_sm.item())
+                similarity = F.cosine_similarity(f, f_orig, dim=0)
+                big_metrics[n]['sim'][method].append(similarity.item())
+
+    for n in range(N_ITR):
+        print(f'N: {n+1}')
+        for m in methods:
+            ar_js = np.array(big_metrics[n]['js'][m])
+            ar_sim = np.array(big_metrics[n]['sim'][m])
+            print(f'{m:>6} **** JS: mean = {ar_js.mean():.8f} , std = {ar_js.std():.8f} SIM: mean = {ar_sim.mean():.8f} , std = {ar_sim.std():.8f}')
 
             
 
@@ -334,5 +354,5 @@ def distribution_shift(dataset, model_name, forward = True, fill_method='past', 
 if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
-    distribution_shift('ucf101', 'mc3-18', forward = True, fill_method='past')
+    distribution_shift('ucf101', 'mc3-18', forward = True)
     pass

@@ -216,30 +216,30 @@ from models import get_model
 
 if __name__ == "__main__":
     # tofill, fillwith = future_fill([0,4,7,8,13,15])
-    import torch
-    video = torch.rand([1,3,16,112,112])
+    # import torch
+    # video = torch.rand([1,3,16,112,112])
 
 
-    dataset = 'ucf101'
-    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    model = get_model.get_model(dataset, 'mc3-18')
-    video = model.get_video(path_list[102])
-    keep = [0,1,2,3,8,9,10,11,12,13,14,15]
-    fvideo = fill_with_keep(keep, video, 'interp')
+    # dataset = 'ucf101'
+    # path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    # model = get_model.get_model(dataset, 'mc3-18')
+    # video = model.get_video(path_list[102])
+    # keep = [0,1,2,3,8,9,10,11,12,13,14,15]
+    # fvideo = fill_with_keep(keep, video, 'interp')
+
+
+    # fvideo_ = linear_interpolate_frames(video, keep)
+
+    # grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
+    # fgrid = make_grid(fvideo.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
+    # img = torch.concatenate([grid,fgrid],dim=1)
 
     
-    fvideo_ = linear_interpolate_frames(video, keep)
-
-    grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
-    fgrid = make_grid(fvideo.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
-    img = torch.concatenate([grid,fgrid],dim=1)
-
-    
-    plt.imshow(img.permute(1,2,0).cpu())
-    plt.show()
+    # plt.imshow(img.permute(1,2,0).cpu())
+    # plt.show()
 
 
-    # fvideo = fill_with_keep(keep, video, fill='mean')
+    # # fvideo = fill_with_keep(keep, video, fill='mean')
+    # # fvideo = video.clone()
+    # # fill_video(tofill, fillwith, fvideo)
     pass
-    # fvideo = video.clone()
-    # fill_video(tofill, fillwith, fvideo)
