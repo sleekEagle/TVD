@@ -300,10 +300,13 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
     for N in range(N_ITR):
         method_js = {}
         method_sim = {}
+        method_cosin = {}
         for m in methods:
             method_js[m] = []
             method_sim[m] = []
-        big_metrics[N] = {'js': method_js, 'sim': method_sim}
+            method_cosin[m] = []
+
+        big_metrics[N] = {'js': method_js, 'norm': method_sim, 'cosine': method_cosin}
 
     for path in tqdm(path_list):
         video = model.get_video(path)
@@ -338,15 +341,19 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
                 sm, f = get_preds(fvideo, model)
                 js_sm = func.jensen_shannon(sm, sm_orig)
                 big_metrics[n]['js'][method].append(js_sm.item())
+                f_norm = ((f**2).sum())**0.5
+                f_orig_norm = ((f_orig**2).sum())**0.5
                 similarity = F.cosine_similarity(f, f_orig, dim=0)
-                big_metrics[n]['sim'][method].append(similarity.item())
+                big_metrics[n]['norm'][method].append((f_norm / f_orig_norm).item())
+                big_metrics[n]['cosine'][method].append(similarity.item())
 
     for n in range(N_ITR):
         print(f'N: {n+1}')
         for m in methods:
             ar_js = np.array(big_metrics[n]['js'][m])
-            ar_sim = np.array(big_metrics[n]['sim'][m])
-            print(f'{m:>6} **** JS: mean = {ar_js.mean():.8f} , std = {ar_js.std():.8f} SIM: mean = {ar_sim.mean():.8f} , std = {ar_sim.std():.8f}')
+            ar_sim = np.array(big_metrics[n]['norm'][m])
+            ar_cosin = np.array(big_metrics[n]['cosine'][m])
+            print(f'{m:>6} **** JS: mean = {ar_js.mean():.8f} , std = {ar_js.std():.8f} NORM_ratio: mean = {ar_sim.mean():.8f} , std = {ar_sim.std():.8f} cosine: mean = {ar_cosin.mean():.8f} , std = {ar_cosin.std():.8f}')
 
             
 
@@ -354,5 +361,5 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
 if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
-    distribution_shift('ssv2', 'vjepa2', forward = True)
+    distribution_shift('ucf101', 'mc3-18', forward = True)
     pass
