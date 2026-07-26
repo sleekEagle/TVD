@@ -122,7 +122,7 @@ def save_dict_to_h5(group, dictionary):
             # save string as attribute
             group.attrs[key] = value
 
-def load_jsonl_to_dict(filepath):
+def load_jsonl_to_dict(filepath):   
     """Load JSON Lines file into a dictionary keyed by filename"""
     data = {}
     with open(filepath, 'r') as f:

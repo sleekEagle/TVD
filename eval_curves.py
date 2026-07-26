@@ -156,6 +156,6 @@ def eval_mul(dataset, model, method, forward):
 
 
 if __name__ == "__main__":
-    eval_curves('ssv2', 'vjepa2', 'greedy', forward=False)
-    eval_acc_comp('ssv2', 'vjepa2', 'greedy', forward=False)
+    eval_curves('ssv2', 'vjepa2', 'brute', forward=False)
+    eval_acc_comp('ssv2', 'vjepa2', 'brute', forward=False)
     # eval_mul('ucf101', 'r3d-18', 'brute', forward=True)
