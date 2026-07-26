@@ -84,7 +84,7 @@ def fill_with_keep(keep, video, fill='past'):
         fvideo[:,:,z_idx,:] = 0
     elif fill == 'mean':
         m_idx = [i for i in range(video.size(2)) if i not in keep]
-        vid_mean = video.mean(dim=(0,2,3,4),keepdim=True)
+        vid_mean = video[:,:,m_idx,:].mean(dim=(0,2,3,4),keepdim=True)
         fvideo[:,:,m_idx,:] = vid_mean
     return fvideo
 
