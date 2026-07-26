@@ -280,35 +280,36 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
             f.write(json.dumps(d) + '\n')
             f.flush()
 
-    # if new_idx!=-1:
-    #     print(f'{existing} {existing + new_idx} length : {len(existing+new_idx)}')
-    # else:
-    #     print('not found')
 
-    # def get_replace_frames(video, model, valid_idx, other_idx, o_sm, skip_idx=-1):
-    #     replace = {}
-    #     for idx in valid_idx:
-    #         if idx == skip_idx: continue
-    #         existing = [i for i in valid_idx if i != idx]
-    #         js_list = find_sfs_single(video, model, existing, other_idx, o_sm)
-    #         other_idx = np.array(other_idx)
-    #         sel_idx = other_idx[np.array(js_list)<thr]
-    #         replace[idx] = sel_idx.tolist()
-    #     return replace
-    
-    # rpl = get_replace_frames(video, model, valid_idx, other_idx, o_sm)
-    # for k_frm in rpl:
-    #     for o_frm in rpl[k_frm]:
-    #         valid = valid_idx[:]
-    #         other = other_idx[:]
-    #         i1 = valid_idx.index(k_frm)
-    #         i2 = other_idx.index(o_frm)
-    #         valid[i1], other[i2] = other[i2], valid[i1]
-    #         get_replace_frames(video, model, valid, other, o_sm, skip_idx=o_frm)
+def distribution_shift(dataset, model_name, forward = True, fill_method='past', thr=1e-3):
+    out_path = CONF.OUT_PATH
+    out_file = os.path.join(out_path, 'brute')
+    ward = 'forward' if forward else 'backward'
+    data_path = os.path.join(out_file, f'curves_{dataset}_{model_name}_{ward}.jsonl')
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    data = func.load_jsonl_to_dict(data_path)
+    model = get_model.get_model(dataset, model_name)
 
-    
+    for path in tqdm(path_list):
+        video = model.get_video(path)
+        L = video.size(2)
+        fname = os.path.basename(path)
+        f_idx = data[fname]['idx']
+        js_ar = np.array(data[fname]['js_ar'])
+        n = np.argwhere(js_ar<thr).min()
+        valid_idx = f_idx[:n+1]
+
+        logits = model.predict_video(video)
+        sm = F.softmax(logits, dim=1)
+
+        f = model.get_features()
+
+
+
+
 
 if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
-    dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
+    # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
+    distribution_shift('ucf101', 'mc3-18', forward = True, fill_method='past')
     pass
