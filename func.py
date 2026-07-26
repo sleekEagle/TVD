@@ -15,9 +15,32 @@ def get_pred(model, path):
 
 #****************************************************************************************************************
 #****************************************************************************************************************
-# *****************  Temporal Freezing Code *********************************************************************
+# *****************  Temporal Freezing / interpolation Code *********************************************************************
 #****************************************************************************************************************
 #****************************************************************************************************************
+
+def linear_interpolate_frames(video, keep):
+    """
+    video: Tensor (B, C, T, H, W)
+    remove_indices: list of int, e.g., [3, 7, 12]
+    Returns: video with removed frames linearly interpolated from neighbors
+    """
+    out = video.clone()
+    T = video.shape[2]
+    remove_indices = set(range(T)) - set(keep)
+    
+    for idx in sorted(remove_indices):
+        before = max([i for i in keep if i < idx], default=None)
+        after = min([i for i in keep if i > idx], default=None)
+        
+        if before is None:
+            out[:, :, idx] = video[:, :, after]      # hold first valid
+        elif after is None:
+            out[:, :, idx] = video[:, :, before]     # hold last valid
+        else:
+            alpha = (idx - before) / (after - before)
+            out[:, :, idx] = (1 - alpha) * video[:, :, before] + alpha * video[:, :, after]
+    return out
 
 '''
 how to use:
@@ -182,13 +205,34 @@ def get_js_video(data):
     return js
 
 
+from torchvision.utils import make_grid
+import matplotlib.pyplot as plt
+from dataloaders import data_paths
+from models import get_model
 
 if __name__ == "__main__":
     # tofill, fillwith = future_fill([0,4,7,8,13,15])
     import torch
     video = torch.rand([1,3,16,112,112])
+
+
+    dataset = 'ucf101'
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, 'mc3-18')
+    video = model.get_video(path_list[102])
     keep = [0,1,2,3,8,9,10,11,12,13,14,15]
-    fvideo = fill_with_keep(keep, video, fill='mean')
+    fvideo = linear_interpolate_frames(video, keep)
+
+    grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
+    fgrid = make_grid(fvideo.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
+    img = torch.concatenate([grid,fgrid],dim=1)
+
+    
+    plt.imshow(img.permute(1,2,0).cpu())
+    plt.show()
+
+
+    # fvideo = fill_with_keep(keep, video, fill='mean')
     pass
     # fvideo = video.clone()
     # fill_video(tofill, fillwith, fvideo)
