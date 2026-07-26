@@ -354,5 +354,5 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
 if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
-    distribution_shift('ucf101', 'mc3-18', forward = True)
+    distribution_shift('ssv2', 'vjepa2', forward = True)
     pass
