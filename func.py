@@ -82,6 +82,10 @@ def fill_with_keep(keep, video, fill='past'):
     elif fill == 'zero':
         z_idx = [i for i in range(video.size(2)) if i not in keep]
         fvideo[:,:,z_idx,:] = 0
+    elif fill == 'mean':
+        m_idx = [i for i in range(video.size(2)) if i not in keep]
+        vid_mean = video.mean(dim=(0,2,3,4),keepdim=True)
+        fvideo[:,:,m_idx,:] = vid_mean
     return fvideo
 
 
@@ -184,7 +188,7 @@ if __name__ == "__main__":
     import torch
     video = torch.rand([1,3,16,112,112])
     keep = [0,1,2,3,8,9,10,11,12,13,14,15]
-    fvideo = fill_with_keep(keep, video, fill='zero')
+    fvideo = fill_with_keep(keep, video, fill='mean')
     pass
     # fvideo = video.clone()
     # fill_video(tofill, fillwith, fvideo)
