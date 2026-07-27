@@ -75,11 +75,7 @@ class VJEPA2(nn.Module):
         return 1
     
     
-    def predict_video(self, video_path):
-        # Load and sample frames
-        inputs = self._load_video(video_path)
-
+    def predict_video(self, video):
         with torch.no_grad():
-            outputs = self.model(**inputs)
-
+            outputs = self.model(video.permute(0,2,1,3,4))
         return outputs.logits
