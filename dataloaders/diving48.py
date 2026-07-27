@@ -2,6 +2,7 @@ import numpy as np
 import os
 import json
 import CONF
+from datasets import load_dataset
 
 def get_paths():
     data_path = CONF.DIVING_PATH
@@ -9,10 +10,13 @@ def get_paths():
     with open(os.path.join(data_path, 'id2label.json'), 'r') as f:
         id2label = json.load(f)
 
-    #split files downloaded from https://github.com/GaganKanojia/Attentive-spatio-temporal-representation-learning-for-diving-classification/tree/master
-    test_data = np.load(os.path.join(data_path, 'test_data_64.npy'), allow_pickle=True)
-    # train_data = np.load(r"D:\datasets\Diving48_rgb\train_data_64.npy", allow_pickle=True)
-    # vocab = np.load(r"D:\datasets\Diving48_rgb\vocab.npy")
+    # ds = load_dataset("bkprocovid19/diving48")
+
+    train_path = os.path.join(data_path, "Diving48_V2_train.json")
+    test_path = os.path.join(data_path, "Diving48_V2_test.json")
+
+    train_data = json.load(open(train_path))
+    test_data = json.load(open(test_path))
 
     data_path = os.path.join(data_path, 'rgb')
     paths, cls_names, cls_ind = [], [], []
@@ -27,4 +31,5 @@ def get_paths():
         cls_ind.append(l)
     
     return paths, cls_names, cls_ind
+
 
