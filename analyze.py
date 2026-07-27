@@ -291,7 +291,7 @@ select: random- remove random frames, worst : remove the worst frames according 
 '''
 def distribution_shift(dataset, model_name, forward = True, thr=1e-3, select = 'random'):
     out_path = CONF.OUT_PATH
-    result_file = os.path.join(out_path, 'feature_dist', 'distrib.txt')
+    result_file = os.path.join(out_path, 'distrib.txt')
     out_file = os.path.join(out_path, 'brute')
     ward = 'forward' if forward else 'backward'
     data_path = os.path.join(out_file, f'curves_{dataset}_{model_name}_{ward}.jsonl')
@@ -316,7 +316,10 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3, select = '
 
     #     big_metrics[N] = {'js': method_js, 'norm': method_sim, 'cosine': method_cosin}
 
+    count = 0 
     for path in tqdm(path_list):
+        count += 1
+        if count == 5: break
         video = model.get_video(path)
         L = video.size(2)
         fname = os.path.basename(path)

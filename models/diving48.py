@@ -70,9 +70,6 @@ class VJEPA2(nn.Module):
         video = vr.get_frames_at(indices=np.array(frame_idx)).data
         inputs = self.processor(video, return_tensors="pt").to(self.model.device)
         return inputs['pixel_values_videos'].permute(0,2,1,3,4) # [1,3,32,224,224]
-
-
-        return 1
     
     
     def predict_video(self, video):

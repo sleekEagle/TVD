@@ -10,6 +10,7 @@ def eval(dataset, model):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model)
 
+    #acc = 17% for 44% of data stride = 2
     correct = 0
     for i in tqdm(range(len(path_list))):
         video = model.get_video(path_list[i])
