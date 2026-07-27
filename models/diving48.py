@@ -33,20 +33,24 @@ class VJEPA2(nn.Module):
         self.num_frames=self.model.config.frames_per_clip
         data_path = CONF.DIVING_PATH
 
-        test_path = os.path.join(data_path, "Diving48_V2_test.json")
-        data = json.load(open(test_path))
-        data_dict = {}
-        for d in data:
-            fname = d['vid_name']
-            data_dict[fname] = {'label':d['label'], 'start_name':d['start_frame'], 'end_frame':d['end_frame']}
-        self.data_dict = data_dict
+        # test_path = os.path.join(data_path, "Diving48_V2_test.json")
+        # data = json.load(open(test_path))
+        # data_dict = {}
+        # for d in data:
+        #     fname = d['vid_name']
+        #     data_dict[fname] = {'label':d['label'], 'start_frame':d['start_frame'], 'end_frame':d['end_frame']}
+        # self.data_dict = data_dict
         
     def get_video(self, path):
-        fname = os.path.basename(path).split('.')[0]
-        data = self.data_dict[fname]
-        
+        # fname = os.path.basename(path).split('.')[0]
+        # data = self.data_dict[fname]
+        # data_nf = data['end_frame'] - data['start_frame'] + 1
+
         vr = VideoDecoder(path)
         total_frames = len(vr)
+
+        # assert data_nf == total_frames, 'n frames not consistant' # this does not get triggered
+
         required_frames = self.model.config.frames_per_clip
         
         # Sample available frames (use stride of 2 as in your example)
@@ -65,7 +69,10 @@ class VJEPA2(nn.Module):
         
         video = vr.get_frames_at(indices=np.array(frame_idx)).data
         inputs = self.processor(video, return_tensors="pt").to(self.model.device)
-        return inputs
+        return inputs['pixel_values_videos'].permute(0,2,1,3,4) # [1,3,32,224,224]
+
+
+        return 1
     
     
     def predict_video(self, video_path):
