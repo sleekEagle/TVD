@@ -14,6 +14,8 @@ from PIL import Image
 from torchvision import transforms
 from transformers import AutoImageProcessor, AutoModelForVideoClassification
 from transformers import AutoTokenizer, AutoModel, AutoProcessor
+import CONF
+import json
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -29,9 +31,21 @@ class VJEPA2(nn.Module):
         self.model = AutoModelForVideoClassification.from_pretrained(hf_repo).to(device)
         self.processor = AutoVideoProcessor.from_pretrained(hf_repo)
         self.num_frames=self.model.config.frames_per_clip
+        data_path = CONF.DIVING_PATH
 
-    def _load_video(self, video_path):
-        vr = VideoDecoder(video_path)
+        test_path = os.path.join(data_path, "Diving48_V2_test.json")
+        data = json.load(open(test_path))
+        data_dict = {}
+        for d in data:
+            fname = d['vid_name']
+            data_dict[fname] = {'label':d['label'], 'start_name':d['start_frame'], 'end_frame':d['end_frame']}
+        self.data_dict = data_dict
+        
+    def get_video(self, path):
+        fname = os.path.basename(path).split('.')[0]
+        data = self.data_dict[fname]
+        
+        vr = VideoDecoder(path)
         total_frames = len(vr)
         required_frames = self.model.config.frames_per_clip
         

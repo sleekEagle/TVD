@@ -378,4 +378,6 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     path_list, cls_list, idx_list = data_paths.get_paths('diving48')
+    model = get_model.get_model('diving48', 'vjepa2')
+    model.get_video(path_list[0])
     pass
