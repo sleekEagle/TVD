@@ -286,36 +286,44 @@ def get_preds(video, model):
     f = model.get_features()
     return sm, f
 
-def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
+'''
+select: random- remove random frames, worst : remove the worst frames according to brute
+'''
+def distribution_shift(dataset, model_name, forward = True, thr=1e-3, select = 'random'):
     out_path = CONF.OUT_PATH
+    result_file = os.path.join(out_path, 'feature_dist', 'distrib.txt')
     out_file = os.path.join(out_path, 'brute')
     ward = 'forward' if forward else 'backward'
     data_path = os.path.join(out_file, f'curves_{dataset}_{model_name}_{ward}.jsonl')
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    data = func.load_jsonl_to_dict(data_path)
+    if select != 'random':
+        data = func.load_jsonl_to_dict(data_path)
     model = get_model.get_model(dataset, model_name)
     N_ITR = 4
     methods = ['future', 'past', 'zero', 'mean', 'interp']
     big_metrics = {}
-    for N in range(N_ITR):
-        method_js = {}
-        method_sim = {}
-        method_cosin = {}
-        for m in methods:
-            method_js[m] = []
-            method_sim[m] = []
-            method_cosin[m] = []
+    for m in methods:
+        big_metrics[m] = {'js': {i: [] for i in range(N_ITR)}, 'norm': {i: [] for i in range(N_ITR)}, 'cos': {i: [] for i in range(N_ITR)}}
 
-        big_metrics[N] = {'js': method_js, 'norm': method_sim, 'cosine': method_cosin}
+    # for N in range(N_ITR):
+    #     method_js = {}
+    #     method_sim = {}
+    #     method_cosin = {}
+    #     for m in methods:
+    #         method_js[m] = []
+    #         method_sim[m] = []
+    #         method_cosin[m] = []
+
+    #     big_metrics[N] = {'js': method_js, 'norm': method_sim, 'cosine': method_cosin}
 
     for path in tqdm(path_list):
         video = model.get_video(path)
         L = video.size(2)
         fname = os.path.basename(path)
-        f_idx = data[fname]['idx']
-        js_ar = np.array(data[fname]['js_ar'])
-        n = np.argwhere(js_ar<thr).min()
-        valid_idx = f_idx[:n+1]
+        if select != 'random':
+            f_idx = data[fname]['idx']
+        else:
+            f_idx = list(range(video.size(2)))
 
         # original prediction
         sm_orig, f_orig = get_preds(video, model)
@@ -324,15 +332,10 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
         all_idx = list(range(0,L))
         used_idx = []
         for n in range(N_ITR):
-            if len(used_idx) == 0:
-                rand_idx = random.randint(0,L-1)
-                used_idx.append(rand_idx)
-            else:
-                #expand the region
-                if max(used_idx)<L-1:
-                    used_idx.append(max(used_idx)+1)
-                elif min(used_idx)>0:
-                    used_idx.append(min(used_idx)-1)
+            if select == 'random':
+                used_idx = random.sample(f_idx, n+1)
+            elif select == 'worst':
+                used_idx = f_idx[-(n+1):]
                     
             keep_idx = [i for i in all_idx if i not in used_idx]
             
@@ -340,26 +343,38 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3):
                 fvideo = func.fill_with_keep(keep_idx, video, method)
                 sm, f = get_preds(fvideo, model)
                 js_sm = func.jensen_shannon(sm, sm_orig)
-                big_metrics[n]['js'][method].append(js_sm.item())
+                big_metrics[method]['js'][n].append(js_sm.item())
                 f_norm = ((f**2).sum())**0.5
                 f_orig_norm = ((f_orig**2).sum())**0.5
                 similarity = F.cosine_similarity(f, f_orig, dim=0)
-                big_metrics[n]['norm'][method].append((f_norm / f_orig_norm).item())
-                big_metrics[n]['cosine'][method].append(similarity.item())
+                big_metrics[method]['norm'][n].append((f_norm / f_orig_norm).item())
+                big_metrics[method]['cos'][n].append(similarity.item())
 
-    for n in range(N_ITR):
-        print(f'N: {n+1}')
+    with open(result_file, 'a') as f:
+        f.write(f'{dataset},  {model_name},  forward={forward}, thr = {thr},  select={select} \n')
+        for n in range(N_ITR):
+            f.write(f'N: {n+1} \n')
+            for m in methods:
+                ar_js = np.array(big_metrics[m]['js'][n])
+                ar_sim = np.array(big_metrics[m]['norm'][n])
+                ar_cosin = np.array(big_metrics[m]['cos'][n])
+                str = f'{m:>6} **** JS: mean = {ar_js.mean():.8f} , std = {ar_js.std():.8f} NORM_ratio: mean = {ar_sim.mean():.8f} , std = {ar_sim.std():.8f} cosine: mean = {ar_cosin.mean():.8f} , std = {ar_cosin.std():.8f}\n'
+                f.write(str)
+        # write means
+        f.write('Mean of means metrics : \n')
         for m in methods:
-            ar_js = np.array(big_metrics[n]['js'][m])
-            ar_sim = np.array(big_metrics[n]['norm'][m])
-            ar_cosin = np.array(big_metrics[n]['cosine'][m])
-            print(f'{m:>6} **** JS: mean = {ar_js.mean():.8f} , std = {ar_js.std():.8f} NORM_ratio: mean = {ar_sim.mean():.8f} , std = {ar_sim.std():.8f} cosine: mean = {ar_cosin.mean():.8f} , std = {ar_cosin.std():.8f}')
+            f.write(f'{m}: ')
+            for metric in ['js', 'norm', 'cos']:
+                sum = 0
+                for n in range(N_ITR):
+                    sum += np.mean(big_metrics[m][metric][n])
+                f.write(f'{metric} : {sum/N_ITR} ')
+            f.write('\n')
 
-            
 
 
 if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
-    distribution_shift('ucf101', 'mc3-18', forward = True)
+    distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     pass
