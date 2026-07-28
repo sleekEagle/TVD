@@ -17,6 +17,7 @@ def get_paths():
 
     train_data = json.load(open(train_path))
     test_data = json.load(open(test_path))
+    test_data = train_data # comment after training
 
     data_path = os.path.join(data_path, 'rgb')
     paths, cls_names, cls_ind = [], [], []

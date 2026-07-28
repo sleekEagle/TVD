@@ -31,7 +31,9 @@ class VJEPA2(nn.Module):
         self.model = AutoModelForVideoClassification.from_pretrained(hf_repo).to(device)
         self.processor = AutoVideoProcessor.from_pretrained(hf_repo)
         self.num_frames=self.model.config.frames_per_clip
-        data_path = CONF.DIVING_PATH
+        # data_path = CONF.DIVING_PATH
+        self.features = {}
+        self.handle = self.model.pooler.self_attention_layers[2].mlp.fc2.register_forward_hook(self.hook_fn)
 
         # test_path = os.path.join(data_path, "Diving48_V2_test.json")
         # data = json.load(open(test_path))
@@ -40,6 +42,16 @@ class VJEPA2(nn.Module):
         #     fname = d['vid_name']
         #     data_dict[fname] = {'label':d['label'], 'start_frame':d['start_frame'], 'end_frame':d['end_frame']}
         # self.data_dict = data_dict
+
+    def hook_fn(self, module, input, output):
+        self.features['features'] = output.mean(dim=1).detach()
+        
+
+    def get_features(self):
+        return self.features['features'].squeeze()
+    
+    def remove_hook(self):
+        self.handle.remove()
         
     def get_video(self, path):
         # fname = os.path.basename(path).split('.')[0]
