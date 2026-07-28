@@ -15,6 +15,7 @@ def save_features(dataset='diving48', model_name='vjepa2'):
     os.makedirs(out_path, exist_ok=True)
     features, labels = torch.empty(0), []
     for i in tqdm(range(len(path_list))):
+        if i==5: break
         video = model.get_video(path_list[i])
         _=model.predict_video(video)
         f = model.get_features()
