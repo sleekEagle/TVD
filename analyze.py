@@ -383,7 +383,7 @@ def mmd_rbf(X, Y, gamma=1.0):
 
     return Kxx.mean() + Kyy.mean() - 2 * Kxy.mean()
 
-def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'random'):
+def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'random', N_ITR=4):
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, 'brute')
     ward = 'forward' if forward else 'backward'
@@ -393,7 +393,7 @@ def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'ra
         data = func.load_jsonl_to_dict(data_path)
     model = get_model.get_model(dataset, model_name)
 
-    N_ITR = 4
+    N_ITR = N_ITR
     methods = ['future', 'past', 'zero', 'mean', 'interp']
     feature_dict = {}
     for m in methods:
