@@ -289,7 +289,7 @@ def get_preds(video, model):
 '''
 select: random- remove random frames, worst : remove the worst frames according to brute
 '''
-def distribution_shift(dataset, model_name, forward = True, thr=1e-3, select = 'random'):
+def distribution_shift_sample(dataset, model_name, forward = True, thr=1e-3, select = 'random'):
     out_path = CONF.OUT_PATH
     result_file = os.path.join(out_path, 'distrib.txt')
     out_file = os.path.join(out_path, 'brute')
@@ -372,13 +372,81 @@ def distribution_shift(dataset, model_name, forward = True, thr=1e-3, select = '
             f.write('\n')
 
 
+def mmd_rbf(X, Y, gamma=1.0):
+    XX = torch.cdist(X, X) ** 2
+    YY = torch.cdist(Y, Y) ** 2
+    XY = torch.cdist(X, Y) ** 2
+
+    Kxx = torch.exp(-gamma * XX)
+    Kyy = torch.exp(-gamma * YY)
+    Kxy = torch.exp(-gamma * XY)
+
+    return Kxx.mean() + Kyy.mean() - 2 * Kxy.mean()
+
+def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'random'):
+    out_path = CONF.OUT_PATH
+    out_file = os.path.join(out_path, 'brute')
+    ward = 'forward' if forward else 'backward'
+    data_path = os.path.join(out_file, f'curves_{dataset}_{model_name}_{ward}.jsonl')
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    if select != 'random':
+        data = func.load_jsonl_to_dict(data_path)
+    model = get_model.get_model(dataset, model_name)
+
+    N_ITR = 4
+    methods = ['future', 'past', 'zero', 'mean', 'interp']
+    feature_dict = {}
+    for m in methods:
+        feature_dict[m] = [torch.empty(0), torch.empty(0)]
+
+    for path in tqdm(path_list):
+        video = model.get_video(path)
+        L = video.size(2)
+        fname = os.path.basename(path)
+        if select != 'random':
+            f_idx = data[fname]['idx']
+        else:
+            f_idx = list(range(video.size(2)))
+
+        # original prediction
+        sm_orig, f_orig = get_preds(video, model)
+
+        # remove random frames
+        all_idx = list(range(0,L))
+        used_idx = []
+        for n in range(N_ITR):
+            if select == 'random':
+                used_idx = random.sample(f_idx, n+1)
+            elif select == 'worst':
+                used_idx = f_idx[-(n+1):]
+                    
+            keep_idx = [i for i in all_idx if i not in used_idx]
+            
+            for method in methods:
+                fvideo = func.fill_with_keep(keep_idx, video, method)
+                sm, f = get_preds(fvideo, model)
+                feature_dict[method][0] = torch.concatenate([feature_dict[method][0], f_orig[None,:].cpu()], dim=0)
+                feature_dict[method][1] = torch.concatenate([feature_dict[method][1], f[None,:].cpu()], dim=0)
+
+    for method in methods:
+        X = feature_dict[method][0]
+        Y = feature_dict[method][1]
+        Z = torch.cat([X, Y], dim=0)
+        dists = torch.cdist(Z, Z)
+        sigma2 = torch.median(dists**2)
+        gamma = 1 / (2 * sigma2)
+
+        for g in [0.01, 0.1, 1, 10, 100, gamma.item()]:
+            mmd = mmd_rbf(X, Y, gamma=g).item()
+            print(f'method: {method} Gamma: {g} MMD: {mmd}')
+        print('')
+
+
+
+
 
 if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
-    path_list, cls_list, idx_list = data_paths.get_paths('diving48')
-    model = get_model.get_model('diving48', 'vjepa2')
-    for path in tqdm(path_list):
-        video = model.get_video(path)
-    pass
+    distribution_mmd('ucf101', 'mc3-18', forward = False, select='random')

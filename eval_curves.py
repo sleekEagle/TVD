@@ -112,6 +112,7 @@ def eval_acc_comp(dataset, model, method, forward):
         js_ar = np.array(g['js_ar'])
         idx_ar = g['idx']
         video = model.get_video(path)
+        video = video.to(model.device)
         L = video.size(2)
 
         for thr in COMP.keys():
@@ -156,6 +157,6 @@ def eval_mul(dataset, model, method, forward):
 
 
 if __name__ == "__main__":
-    eval_curves('ssv2', 'vjepa2', 'facility', forward=False)
-    eval_acc_comp('ssv2', 'vjepa2', 'facility', forward=False)
+    eval_curves('ssv2', 'tformer_base', 'random', forward=False)
+    eval_acc_comp('ssv2', 'tformer_base', 'random', forward=False)
     # eval_mul('ucf101', 'r3d-18', 'brute', forward=True)
