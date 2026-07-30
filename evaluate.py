@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # eval('ssv2','vjepa2') # 67.43295019157088
 
     # for diving48  dataset
-    eval('diving48', 'vjepa2')
+    eval('diving48', 'vjepa2') # 68.4771573604061
 
 
 
