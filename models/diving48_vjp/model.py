@@ -254,7 +254,7 @@ class VJEPA2(nn.Module):
         self.fps = None
         self.filter_short_videos = False
         self.num_clips = 1
-        self.random_clip_sampling = True
+        self.random_clip_sampling = False
         self.allow_clip_overlap = True
         self.DEFAULT_NORMALIZATION = ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         
