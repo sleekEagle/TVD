@@ -9,8 +9,8 @@ import math
 import torch
 import torch.nn as nn
 
-from models.diving48_vjp.models.utils.modules import Block, CrossAttention, CrossAttentionBlock
-from utils.tensors import trunc_normal_
+from src.models.utils.modules import Block, CrossAttention, CrossAttentionBlock
+from src.utils.tensors import trunc_normal_
 
 
 class AttentivePooler(nn.Module):

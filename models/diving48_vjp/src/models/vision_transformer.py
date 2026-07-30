@@ -8,10 +8,10 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-import sys
-from models.diving48_vjp.models.utils.modules import Block
-from models.diving48_vjp.models.utils.patch_embed import PatchEmbed, PatchEmbed3D
-from models.diving48_vjp.models.utils.pos_embs import get_2d_sincos_pos_embed, get_3d_sincos_pos_embed
+
+from src.models.utils.modules import Block
+from src.models.utils.patch_embed import PatchEmbed, PatchEmbed3D
+from src.models.utils.pos_embs import get_2d_sincos_pos_embed, get_3d_sincos_pos_embed
 
 def _no_grad_trunc_normal_(tensor, mean, std, a, b):
     # Cut & paste from PyTorch official master until it's in a few official releases - RW

@@ -6,9 +6,9 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 import torch.nn.functional as F
-import models.vision_transformer as vit
-from models.attentive_pooler import AttentiveClassifier
-# from evals.video_classification_frozen.utils import make_transforms
+import models.diving48_vjp.models.vision_transformer as vit
+from models.diving48_vjp.models.attentive_pooler import AttentiveClassifier
+from models.diving48_vjp.video_classification_frozen.utils import make_transforms
 # from src.datasets.data_manager import init_data
 import torch
 import torch.nn as nn
@@ -18,6 +18,7 @@ import random
 from typing import Any
 import yaml
 import os
+from decord import cpu, VideoReader
 
 def apply_masks(x, masks, concat=True):
     """
@@ -232,7 +233,7 @@ class VJEPA2(nn.Module):
         args_classifier = args_exp.get("classifier")
 
 
-        frames_per_clip = args_data.get("frames_per_clip", 16)
+        self.frames_per_clip = args_data.get("frames_per_clip", 16)
         resolution = args_data.get("resolution", 224)
         num_classes = args_data.get("num_classes")
 
@@ -246,6 +247,15 @@ class VJEPA2(nn.Module):
         num_heads = args_classifier.get("num_heads", 16)
 
         pretrain_folder = params.get("folder", None)
+
+        self.filter_long_videos=int(10**9)
+        self.frame_step = args_data.get("frame_step", 2)
+        self.duration = None
+        self.fps = None
+        self.filter_short_videos = False
+        self.num_clips = 1
+        self.random_clip_sampling = True
+        self.DEFAULT_NORMALIZATION = ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         
         folder = os.path.join(pretrain_folder, "video_classification_frozen/")
         if eval_tag is not None:
@@ -256,37 +266,49 @@ class VJEPA2(nn.Module):
 
         # -- init models
         model = (init_encoder(
-                frames_per_clip=frames_per_clip,
+                frames_per_clip=self.frames_per_clip,
                 resolution=resolution,
                 checkpoint=checkpoint,
                 model_kwargs=args_model,
                 wrapper_kwargs=args_wrapper,
             )
-            .to(device)
+            .to(self.device)
         )
         model.eval()
         for p in model.parameters():
             p.requires_grad = False
 
-        encoder = model
+        self.encoder = model
         classifier = AttentiveClassifier(
-                embed_dim=encoder.embed_dim,
+                embed_dim=self.encoder.embed_dim,
                 num_heads=num_heads,
                 depth=num_probe_blocks,
                 num_classes=num_classes,
                 use_activation_checkpointing=True,
-            ).to(device)
+            ).to(self.device)
         if os.path.exists(latest_path):
-            classifier = load_checkpoint(
-                device=device,
+            self.classifier = load_checkpoint(
+                device=self.device,
                 r_path=latest_path,
                 classifiers=classifier
             )
 
-        pass
+        self.transform = make_transforms(
+            training=False,
+            num_views_per_clip=1,
+            random_horizontal_flip=False,
+            random_resize_aspect_ratio=(0.75, 4 / 3),
+            random_resize_scale=(0.08, 1.0),
+            reprob=0.25,
+            auto_augment=True,
+            motion_shift=False,
+            crop_size=resolution,
+            normalize=self.DEFAULT_NORMALIZATION,
+        )
+
         
-        self.features = {}
-        self.handle = self.model.pooler.self_attention_layers[2].mlp.fc2.register_forward_hook(self.hook_fn)
+        # self.features = {}
+        # self.handle = self.model.pooler.self_attention_layers[2].mlp.fc2.register_forward_hook(self.hook_fn)
 
     def hook_fn(self, module, input, output):
         self.features['features'] = output.mean(dim=1).detach()
@@ -306,24 +328,137 @@ class VJEPA2(nn.Module):
         pass
 
     def get_video(self, path):
-        pass
+        loaded_sample = self.get_item_video(path)
+        return loaded_sample[0][0][0]
+
+
+    def get_item_video(self, path):
+        buffer, clip_indices = self.loadvideo_decord(
+            path, self.frames_per_clip
+        )  # [T H W 3]
+        loaded_video = len(buffer) > 0
+        if not loaded_video:
+            return
+
+        # Label/annotations for video
+
+        def split_into_clips(video):
+            """Split video into a list of clips"""
+            fpc = self.frames_per_clip
+            nc = self.num_clips
+            return [video[i * fpc : (i + 1) * fpc] for i in range(nc)]
+
+        buffer = split_into_clips(buffer)
+        if self.transform is not None:
+            buffer = [self.transform(clip) for clip in buffer]
+
+        return buffer, clip_indices
+    
+    def loadvideo_decord(self, sample, fpc):
+        """Load video content using Decord"""
+
+        fname = sample
+        if not os.path.exists(fname):
+            print(f"video path not found {fname=}")
+            return [], None
+
+        _fsize = os.path.getsize(fname)
+        if _fsize > self.filter_long_videos:
+            print(f"skipping long video of size {_fsize=} (bytes)")
+            return [], None
+
+        try:
+            vr = VideoReader(fname, num_threads=-1, ctx=cpu(0))
+        except Exception:
+            return [], None
+
+        fstp = self.frame_step
+        if self.duration is not None or self.fps is not None:
+            try:
+                video_fps = math.ceil(vr.get_avg_fps())
+            except Exception as e:
+                print(e)
+
+            if self.duration is not None:
+                assert self.fps is None
+                fstp = int(self.duration * video_fps / fpc)
+            else:
+                assert self.duration is None
+                fstp = video_fps // self.fps
+
+        assert fstp is not None and fstp > 0
+        clip_len = int(fpc * fstp)
+
+        if self.filter_short_videos and len(vr) < clip_len:
+            print(f"skipping video of length {len(vr)}")
+            return [], None
+
+        vr.seek(0)  # Go to start of video before sampling frames
+
+        # Partition video into equal sized segments and sample each clip
+        # from a different segment
+        partition_len = len(vr) // self.num_clips
+
+        all_indices, clip_indices = [], []
+        for i in range(self.num_clips):
+
+            if partition_len > clip_len:
+                # If partition_len > clip len, then sample a random window of
+                # clip_len frames within the segment
+                end_indx = clip_len
+                if self.random_clip_sampling:
+                    end_indx = np.random.randint(clip_len, partition_len)
+                start_indx = end_indx - clip_len
+                indices = np.linspace(start_indx, end_indx, num=fpc)
+                indices = np.clip(indices, start_indx, end_indx - 1).astype(np.int64)
+                # --
+                indices = indices + i * partition_len
+            else:
+                # If partition overlap not allowed and partition_len < clip_len
+                # then repeatedly append the last frame in the segment until
+                # we reach the desired clip length
+                if not self.allow_clip_overlap:
+                    indices = np.linspace(0, partition_len, num=partition_len // fstp)
+                    indices = np.concatenate(
+                        (
+                            indices,
+                            np.ones(fpc - partition_len // fstp) * partition_len,
+                        )
+                    )
+                    indices = np.clip(indices, 0, partition_len - 1).astype(np.int64)
+                    # --
+                    indices = indices + i * partition_len
+
+                # If partition overlap is allowed and partition_len < clip_len
+                # then start_indx of segment i+1 will lie within segment i
+                else:
+                    sample_len = min(clip_len, len(vr)) - 1
+                    indices = np.linspace(0, sample_len, num=sample_len // fstp)
+                    indices = np.concatenate(
+                        (
+                            indices,
+                            np.ones(fpc - sample_len // fstp) * sample_len,
+                        )
+                    )
+                    indices = np.clip(indices, 0, sample_len - 1).astype(np.int64)
+                    # --
+                    clip_step = 0
+                    if len(vr) > clip_len:
+                        clip_step = (len(vr) - clip_len) // (self.num_clips - 1)
+                    indices = indices + i * clip_step
+
+            clip_indices.append(indices)
+            all_indices.extend(list(indices))
+
+        buffer = vr.get_batch(all_indices).asnumpy()
+        return buffer, clip_indices
     
     def predict_video(self, video):
         pass
 
-
 if __name__ == "__main__":
-    if not torch.cuda.is_available():
-        device = torch.device("cpu")
-    else:
-        device = torch.device("cuda:0")
-        torch.cuda.set_device(device)
-
-    model = VJEPA2()
-
-
-
-    # Initialize model
+    # model = VJEPA2()
+    pass
 
 
 
