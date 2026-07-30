@@ -255,6 +255,7 @@ class VJEPA2(nn.Module):
         self.filter_short_videos = False
         self.num_clips = 1
         self.random_clip_sampling = True
+        self.allow_clip_overlap = True
         self.DEFAULT_NORMALIZATION = ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         
         folder = os.path.join(pretrain_folder, "video_classification_frozen/")
@@ -454,7 +455,11 @@ class VJEPA2(nn.Module):
         return buffer, clip_indices
     
     def predict_video(self, video):
-        pass
+        clips = [[video[None,:].to(self.device)]]
+        with torch.no_grad():
+            features = self.encoder(clips)
+            outputs = self.classifier(features[0])
+        return outputs
 
 if __name__ == "__main__":
     # model = VJEPA2()
