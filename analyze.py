@@ -36,6 +36,34 @@ def get_video_curve(model, video, idx, forward):
     
     return sim_ar, js_ar
 
+def get_video_logit(model, video, idx, analyze_cls=None):
+    if not analyze_cls:
+        L = video.size(2)
+        pred = model.predict_video(video)
+        pred = F.softmax(pred, dim=1)
+        o_cls = torch.argmax(pred,dim=1)
+        o_l = pred[0,o_cls]
+    else: 
+        o_cls = analyze_cls
+
+    change_ar, cls_ar = [], []
+    filled = []
+    for i in idx:
+        fvideo = video.clone()
+        filled.append(i)
+        tofill, fillwith = func.past_fill(filled, L)
+        if len(tofill)>0 and len(fillwith)>0:
+            func.fill_video(tofill, fillwith, fvideo)
+        pred = model.predict_video(fvideo) 
+        p_cls = torch.argmax(pred, dim=1) 
+        pred = F.softmax(pred, dim=1)
+        p_l = pred[0,o_cls]
+        change = (p_l)/o_l
+        change_ar.append(change.item())
+        cls_ar.append(p_cls.item())
+    
+    return change_ar, cls_ar
+
 '''
 forward:
     lowest js: best
@@ -330,15 +358,15 @@ def dataset_curves_sm(dataset, model, method, forward = True):
     model = get_model.get_model(dataset, model)
 
 
-    path = path_list[10]
-    video = model.get_video(path)
-    video = video.to(model.device)
-    fname = os.path.basename(path)
-    L = video.size(2)
-    greedy_l = get_greedy_logit(video, model, forward, analyze_cls=None).cpu().numpy()
-    idx = brute_logit(video, model, greedy_l, forward, analyze_cls=None) 
-    sim_ar, js_ar = get_video_curve(model, video, idx, forward)
-    pass
+    for path in path_list:
+        video = model.get_video(path)
+        video = video.to(model.device)
+        fname = os.path.basename(path)
+        L = video.size(2)
+        greedy_l = get_greedy_logit(video, model, forward, analyze_cls=None).cpu().numpy()
+        idx = brute_logit(video, model, greedy_l, forward, analyze_cls=None) 
+        change_ar, cls_ar = get_video_logit(model, video, idx)
+        print(change_ar, cls_ar)
 
 
 
