@@ -216,6 +216,8 @@ def init_encoder(
     return model
 
 
+import CONF
+
 class VJEPA2(nn.Module):
     def __init__(self):
         super().__init__()
@@ -237,7 +239,7 @@ class VJEPA2(nn.Module):
         resolution = args_data.get("resolution", 224)
         num_classes = args_data.get("num_classes")
 
-        checkpoint = args_pretrain.get("checkpoint")
+        checkpoint = os.path.join(CONF.DIVING_CKPT_PATH, 'vitl.pt')
         args_model = args_pretrain.get("pretrain_kwargs")
         args_wrapper = args_pretrain.get("wrapper_kwargs")
 
@@ -246,7 +248,7 @@ class VJEPA2(nn.Module):
         num_probe_blocks = args_classifier.get("num_probe_blocks", 1)
         num_heads = args_classifier.get("num_heads", 16)
 
-        pretrain_folder = params.get("folder", None)
+        pretrain_folder = CONF.DIVING_CKPT_PATH
 
         self.filter_long_videos=int(10**9)
         self.frame_step = args_data.get("frame_step", 2)
