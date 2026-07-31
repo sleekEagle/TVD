@@ -19,6 +19,7 @@ from typing import Any
 import yaml
 import os
 from decord import cpu, VideoReader
+import CONF
 
 def apply_masks(x, masks, concat=True):
     """
@@ -216,8 +217,6 @@ def init_encoder(
     return model
 
 
-import CONF
-
 class VJEPA2(nn.Module):
     def __init__(self):
         super().__init__()
@@ -268,6 +267,7 @@ class VJEPA2(nn.Module):
         latest_path = os.path.join(folder, "latest.pt")
 
         # -- init models
+        print(f'encoder ckpt: {checkpoint}')
         model = (init_encoder(
                 frames_per_clip=self.frames_per_clip,
                 resolution=resolution,
@@ -290,6 +290,7 @@ class VJEPA2(nn.Module):
                 use_activation_checkpointing=True,
             ).to(self.device)
         if os.path.exists(latest_path):
+            print(f'classifier ckpt: {latest_path}')
             self.classifier = load_checkpoint(
                 device=self.device,
                 r_path=latest_path,
