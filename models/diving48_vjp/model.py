@@ -308,7 +308,7 @@ class VJEPA2(nn.Module):
         )
 
         
-        # self.features = {}
+        self.features = {}
         # self.handle = self.model.pooler.self_attention_layers[2].mlp.fc2.register_forward_hook(self.hook_fn)
 
     def hook_fn(self, module, input, output):
@@ -458,6 +458,7 @@ class VJEPA2(nn.Module):
         clips = [[video[None,:].to(self.device)]]
         with torch.no_grad():
             features = self.encoder(clips)
+            self.features['features'] = features[0].mean(dim=1)
             outputs = self.classifier(features[0])
         return outputs
 
