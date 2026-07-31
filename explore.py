@@ -220,13 +220,13 @@ def print_sutable_samples():
         js_ar = np.array(data[k]['js_ar'])
         idx = np.array(data[k]['idx'])
         sel_idx = idx[:min(np.argwhere(js_ar<1e-3))[0]+1]
-        if len(sel_idx) <= 3:
+        if len(sel_idx) >8:
             print(path_list[i])
 
 
 
 if __name__ == "__main__":
     # print_sutable_samples()
-    plot_frames('ssv2', 'vjepa2', 'Pulling two ends of something so that it gets stretched/218656.webm', forward = True)
+    plot_frames('ssv2', 'vjepa2', 'Spilling something behind something/208122.webm', forward = True, thr=1e-2)
     # js_vs_dist('ucf101', 'mc3-18')
     pass

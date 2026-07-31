@@ -59,6 +59,30 @@ def get_greedy_js(video, model, forward):
             js_t = torch.concatenate([js_t, js])
     return js_t
 
+def get_greedy_logit(video, model, forward):
+    L = video.size(2)
+    # o_logits = model.predict_video(video)
+    # o_cls = torch.argmax(o_logits,dim=1)
+    # o_l = o_logits[0,o_cls]
+
+    logit_t = torch.empty(0).to(model.device)
+    for i in range(L):
+        if forward:
+            keep_forward = [i]
+            filled_video = func.fill_with_keep(keep_forward, video)
+            p_logits = model.predict_video(filled_video)
+            p_cls = torch.argmax(p_logits,dim=1)
+            p_l = p_logits[0,p_cls]
+            logit_t = torch.concatenate([logit_t, p_l])
+        else:
+            keep_backward = [idx for idx in range(L) if idx!=i]
+            filled_video = func.fill_with_keep(keep_backward, video)
+            p_logits = model.predict_video(filled_video)
+            p_cls = torch.argmax(p_logits,dim=1)
+            p_l = p_logits[0,p_cls]
+            logit_t = torch.concatenate([logit_t, p_l])
+    return logit_t
+
 def emb_facilitylocation(emb, k=16):
     from apricot import FacilityLocationSelection
     selector = FacilityLocationSelection(
@@ -68,6 +92,65 @@ def emb_facilitylocation(emb, k=16):
     selector.fit(emb)
     keyframe_indices = selector.ranking
     return keyframe_indices
+
+
+def brute_logit(video, model, greedy_l, forward):
+    L = video.size(2)
+    o_logits = model.predict_video(video)
+    o_sm = F.softmax(o_logits, dim=1)
+
+    idx_sort = np.argsort(greedy_l)
+    best_idx = int(idx_sort[0])
+
+    def get_best_idx_forward(model, video, idx_present, o_sm):
+        idx_left = list(set(range(video.size(2)))-set(idx_present))
+        pred_sm_ar = torch.empty(0).to(model.device)
+        for idx in idx_left:
+            keep = idx_present + [idx]
+            tofill, fillwith = func.past_fill(keep, video.size(2))
+            fvideo = video.clone()
+            func.fill_video(tofill, fillwith, fvideo)
+
+            pred = model.predict_video(fvideo)
+            pred_sm = F.softmax(pred,dim=1)
+            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
+
+        js = func.jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
+        bi = idx_left[torch.argmin(js)]
+        return bi
+    
+    def get_best_idx_backward(model, video, idx_remove, o_sm):
+        idx_left = list(set(range(video.size(2)))-set(idx_remove))
+        pred_sm_ar = torch.empty(0).to(model.device)
+        for idx in idx_left:
+            remove = idx_remove + [idx]
+            keep = list(set(range(video.size(2)))-set(remove))
+            tofill, fillwith = func.past_fill(keep, video.size(2))
+            fvideo = video.clone()
+            func.fill_video(tofill, fillwith, fvideo)
+
+            pred = model.predict_video(fvideo)
+            pred_sm = F.softmax(pred,dim=1)
+            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
+
+        js = func.jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
+        bi = idx_left[torch.argmin(js)]
+        return bi
+    
+    sel_idx = [best_idx]
+    for _ in range(video.size(2)-2):
+        if forward:
+            bi = get_best_idx_forward(model, video, sel_idx, o_sm)
+        else:
+            bi = get_best_idx_backward(model, video, sel_idx, o_sm)
+        sel_idx += [bi]
+    sel_idx += list(set(range(video.size(2))) - set(sel_idx))
+
+    if not forward: # most important must be the first
+        sel_idx = sel_idx[::-1]
+
+    return sel_idx
+
 
 def brute(video, model, greedy_js, forward):
     L = video.size(2)
@@ -230,6 +313,23 @@ def dataset_curves(dataset, model, method, forward = True):
 
             f.write(json.dumps(d) + '\n')
             f.flush()
+
+
+def dataset_curves_sm(dataset, model, method, forward = True):
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model)
+
+
+    path = path_list[10]
+    video = model.get_video(path)
+    video = video.to(model.device)
+    fname = os.path.basename(path)
+    L = video.size(2)
+    greedy_l = get_greedy_logit(video, model, forward).cpu().numpy()
+    idx = brute_logit(video, model, greedy_l, forward) 
+    sim_ar, js_ar = get_video_curve(model, video, idx, forward)
+    pass
+
 
 
 def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
@@ -450,4 +550,4 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('diving48', 'vjepa2', forward = False, select='random')
-    dataset_curves('diving48', 'vjepa2', 'random', forward = True)
+    dataset_curves_sm('ucf101', 'mc3-18', 'brute', forward = False)
