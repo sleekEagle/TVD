@@ -14,7 +14,8 @@ def get_paths():
     data = json.load(open(annot_path))
     num_samples_per_dataset.append(len(data))
     for d in data:
-        paths += [os.path.join(CONF.DIVING_DATA_PATH, f'{d['vid_name']}.mp4')]
+        s = d['vid_name']
+        paths += [os.path.join(CONF.DIVING_DATA_PATH, f'{s}.mp4')]
         labels += [d['label']]
         cls_name = id2label[str(d['label'])]
         cls_names.append(cls_name)

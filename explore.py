@@ -159,14 +159,26 @@ def js_vs_dist(dataset, model_name):
 
 def plot_frames(dataset, model_name, fname, forward, thr=1e-3):
     out_path = r'D:\output\TVD\plots\frames'
-    out_path = os.path.join(out_path, f'{fname}.png')
+    
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    basenames = [os.path.basename(s) for s in path_list]
+    if dataset=='ucf101':
+        basenames = [os.path.basename(s) for s in path_list]
+        out_path = os.path.join(out_path, f'{fname}.png')
+    elif dataset == 'ssv2':
+        fn = fname.replace('/','_')
+        out_path = os.path.join(out_path, f'{fn}.png')
+        basenames = []
+        for s in path_list:
+            parent = os.path.basename(os.path.dirname(s))
+            base = os.path.basename(s)
+            str = f'{parent}/{base}'
+            basenames.append(str)
+
     path_idx = basenames.index(fname)
 
     ward = 'forward' if forward else 'backward'
     stat_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
-    data = func.load_jsonl_to_dict(stat_path)[fname]
+    data = list(func.load_jsonl_to_dict(stat_path).items())[path_idx][1]
     js = np.array(data['js_ar'])
     idx = min(np.argwhere(js<thr))
     frames = data['idx'][:int(idx[0])+1]
@@ -201,8 +213,20 @@ def plot_frames(dataset, model_name, fname, forward, thr=1e-3):
     plt.savefig(out_path, bbox_inches='tight', pad_inches=0, dpi=300)
     plt.show()
 
+def print_sutable_samples():
+    path_list, cls_list, idx_list = data_paths.get_paths('ssv2')
+    data = func.load_jsonl_to_dict(r"D:\output\TVD\brute\curves_ssv2_vjepa2_backward.jsonl")
+    for i, k in enumerate(data):
+        js_ar = np.array(data[k]['js_ar'])
+        idx = np.array(data[k]['idx'])
+        sel_idx = idx[:min(np.argwhere(js_ar<1e-3))[0]+1]
+        if len(sel_idx) <= 3:
+            print(path_list[i])
+
+
 
 if __name__ == "__main__":
-    plot_frames('ucf101', 'mc3-18', 'v_CleanAndJerk_g07_c01.avi', forward = True)
+    # print_sutable_samples()
+    plot_frames('ssv2', 'vjepa2', 'Pulling two ends of something so that it gets stretched/218656.webm', forward = True)
     # js_vs_dist('ucf101', 'mc3-18')
     pass

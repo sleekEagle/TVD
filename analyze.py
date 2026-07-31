@@ -449,4 +449,5 @@ if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
-    distribution_mmd('ucf101', 'mc3-18', forward = False, select='random')
+    # distribution_mmd('diving48', 'vjepa2', forward = False, select='random')
+    dataset_curves('diving48', 'vjepa2', 'random', forward = True)
