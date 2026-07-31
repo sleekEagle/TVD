@@ -59,12 +59,15 @@ def get_greedy_js(video, model, forward):
             js_t = torch.concatenate([js_t, js])
     return js_t
 
-def get_greedy_logit(video, model, forward):
-    L = video.size(2)
-    # o_logits = model.predict_video(video)
-    # o_cls = torch.argmax(o_logits,dim=1)
-    # o_l = o_logits[0,o_cls]
-
+def get_greedy_logit(video, model, forward, analyze_cls=None):
+    if not analyze_cls:
+        L = video.size(2)
+        o_logits = model.predict_video(video)
+        o_cls = torch.argmax(o_logits,dim=1)
+        o_l = o_logits[0,o_cls]
+    else: 
+        o_cls = analyze_cls
+ 
     logit_t = torch.empty(0).to(model.device)
     for i in range(L):
         if forward:
@@ -72,14 +75,14 @@ def get_greedy_logit(video, model, forward):
             filled_video = func.fill_with_keep(keep_forward, video)
             p_logits = model.predict_video(filled_video)
             p_cls = torch.argmax(p_logits,dim=1)
-            p_l = p_logits[0,p_cls]
+            p_l = p_logits[0,o_cls]
             logit_t = torch.concatenate([logit_t, p_l])
         else:
             keep_backward = [idx for idx in range(L) if idx!=i]
             filled_video = func.fill_with_keep(keep_backward, video)
             p_logits = model.predict_video(filled_video)
             p_cls = torch.argmax(p_logits,dim=1)
-            p_l = p_logits[0,p_cls]
+            p_l = p_logits[0,o_cls]
             logit_t = torch.concatenate([logit_t, p_l])
     return logit_t
 
@@ -94,10 +97,13 @@ def emb_facilitylocation(emb, k=16):
     return keyframe_indices
 
 
-def brute_logit(video, model, greedy_l, forward):
+def brute_logit(video, model, greedy_l, forward, analyze_cls=None):
     L = video.size(2)
-    o_logits = model.predict_video(video)
-    o_sm = F.softmax(o_logits, dim=1)
+    o_l = model.predict_video(video)
+    if not analyze_cls:
+        o_cls = torch.argmax(o_l, dim=1)
+    else:
+        o_cls = analyze_cls
 
     idx_sort = np.argsort(greedy_l)
     best_idx = int(idx_sort[0])
@@ -119,9 +125,9 @@ def brute_logit(video, model, greedy_l, forward):
         bi = idx_left[torch.argmin(js)]
         return bi
     
-    def get_best_idx_backward(model, video, idx_remove, o_sm):
+    def get_best_idx_backward(model, video, idx_remove, o_l, o_cls):
         idx_left = list(set(range(video.size(2)))-set(idx_remove))
-        pred_sm_ar = torch.empty(0).to(model.device)
+        correct_list, change_list = [], []
         for idx in idx_left:
             remove = idx_remove + [idx]
             keep = list(set(range(video.size(2)))-set(remove))
@@ -129,11 +135,14 @@ def brute_logit(video, model, greedy_l, forward):
             fvideo = video.clone()
             func.fill_video(tofill, fillwith, fvideo)
 
-            pred = model.predict_video(fvideo)
-            pred_sm = F.softmax(pred,dim=1)
-            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
+            pred_l = model.predict_video(fvideo)
+            pred_cls = torch.argmax(pred_l, dim=1)
+            p = pred_l[0,o_cls]
+            o = o_l[0,o_cls]
+            change = (p-o)/o
+            correct_list.append((o_cls==pred_cls).item())
+            change_list.append(change.item())
 
-        js = func.jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
         bi = idx_left[torch.argmin(js)]
         return bi
     
@@ -142,7 +151,7 @@ def brute_logit(video, model, greedy_l, forward):
         if forward:
             bi = get_best_idx_forward(model, video, sel_idx, o_sm)
         else:
-            bi = get_best_idx_backward(model, video, sel_idx, o_sm)
+            bi = get_best_idx_backward(model, video, sel_idx, o_l, o_cls)
         sel_idx += [bi]
     sel_idx += list(set(range(video.size(2))) - set(sel_idx))
 
@@ -325,8 +334,8 @@ def dataset_curves_sm(dataset, model, method, forward = True):
     video = video.to(model.device)
     fname = os.path.basename(path)
     L = video.size(2)
-    greedy_l = get_greedy_logit(video, model, forward).cpu().numpy()
-    idx = brute_logit(video, model, greedy_l, forward) 
+    greedy_l = get_greedy_logit(video, model, forward, analyze_cls=None).cpu().numpy()
+    idx = brute_logit(video, model, greedy_l, forward, analyze_cls=None) 
     sim_ar, js_ar = get_video_curve(model, video, idx, forward)
     pass
 
