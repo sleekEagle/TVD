@@ -36,6 +36,12 @@ def get_video_curve(model, video, idx, forward):
     
     return sim_ar, js_ar
 
+'''
+forward:
+    lowest js: best
+backward:
+    highest js: best
+'''
 def get_greedy_js(video, model, forward):
     L = video.size(2)
     o_logits = model.predict_video(video)
@@ -105,12 +111,12 @@ def brute_logit(video, model, greedy_l, forward, analyze_cls=None):
     else:
         o_cls = analyze_cls
 
-    idx_sort = np.argsort(greedy_l)
+    idx_sort = np.argsort(-1*greedy_l)
     best_idx = int(idx_sort[0])
 
-    def get_best_idx_forward(model, video, idx_present, o_sm):
+    def get_best_idx_forward(model, video, idx_present, analyze_cls):
         idx_left = list(set(range(video.size(2)))-set(idx_present))
-        pred_sm_ar = torch.empty(0).to(model.device)
+        l_list = torch.empty(0).to(model.device)
         for idx in idx_left:
             keep = idx_present + [idx]
             tofill, fillwith = func.past_fill(keep, video.size(2))
@@ -118,16 +124,15 @@ def brute_logit(video, model, greedy_l, forward, analyze_cls=None):
             func.fill_video(tofill, fillwith, fvideo)
 
             pred = model.predict_video(fvideo)
-            pred_sm = F.softmax(pred,dim=1)
-            pred_sm_ar = torch.concatenate([pred_sm_ar, pred_sm])
+            pred_l = pred[0,analyze_cls]
+            l_list = torch.concatenate([l_list, pred_l])
 
-        js = func.jensen_shannon(pred_sm_ar.to(o_sm.device), o_sm.repeat(pred_sm_ar.size(0),1))
-        bi = idx_left[torch.argmin(js)]
+        bi = idx_left[torch.argmax(l_list)]
         return bi
     
-    def get_best_idx_backward(model, video, idx_remove, o_l, o_cls):
+    def get_best_idx_backward(model, video, idx_remove, analyze_cls):
         idx_left = list(set(range(video.size(2)))-set(idx_remove))
-        correct_list, change_list = [], []
+        l_list = torch.empty(0).to(model.device)
         for idx in idx_left:
             remove = idx_remove + [idx]
             keep = list(set(range(video.size(2)))-set(remove))
@@ -135,23 +140,19 @@ def brute_logit(video, model, greedy_l, forward, analyze_cls=None):
             fvideo = video.clone()
             func.fill_video(tofill, fillwith, fvideo)
 
-            pred_l = model.predict_video(fvideo)
-            pred_cls = torch.argmax(pred_l, dim=1)
-            p = pred_l[0,o_cls]
-            o = o_l[0,o_cls]
-            change = (p-o)/o
-            correct_list.append((o_cls==pred_cls).item())
-            change_list.append(change.item())
+            pred = model.predict_video(fvideo)
+            pred_l = pred[0,analyze_cls]
+            l_list = torch.concatenate([l_list, pred_l])
 
-        bi = idx_left[torch.argmin(js)]
+        bi = idx_left[torch.argmax(l_list)]
         return bi
     
     sel_idx = [best_idx]
     for _ in range(video.size(2)-2):
         if forward:
-            bi = get_best_idx_forward(model, video, sel_idx, o_sm)
+            bi = get_best_idx_forward(model, video, sel_idx, o_cls)
         else:
-            bi = get_best_idx_backward(model, video, sel_idx, o_l, o_cls)
+            bi = get_best_idx_backward(model, video, sel_idx, o_cls)
         sel_idx += [bi]
     sel_idx += list(set(range(video.size(2))) - set(sel_idx))
 
