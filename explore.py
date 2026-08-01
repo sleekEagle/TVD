@@ -15,6 +15,7 @@ import torch
 import matplotlib.pyplot as plt
 import analyze
 from torchvision.utils import make_grid
+import analyze
 
 def plot_JS_seq(dataset, model_name, fname, forward):
     out_path = os.path.join(CONF.OUT_PATH, 'plots', 'JS_seq')
@@ -213,6 +214,19 @@ def plot_frames(dataset, model_name, fname, forward, thr=1e-3):
     plt.savefig(out_path, bbox_inches='tight', pad_inches=0, dpi=300)
     plt.show()
 
+def get_idx_to_remove_next(model, video, existing, analyze_cls):
+    l_list = torch.empty(0).to(model.device)
+    for idx in existing:
+        keep = [i for i in existing if i!=idx]
+        fvideo = func.fill_with_keep(keep, video, 'past')
+        pred = model.predict_video(fvideo)
+        pred_l = pred[:,analyze_cls]
+        l_list = torch.concatenate([l_list, pred_l])
+
+    amax = torch.argmax(l_list)
+    bi = existing[amax]
+    return bi, l_list[amax]
+    
 def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3):
     out_path = r'D:\output\TVD\plots\frames'
     # get SFS
@@ -243,19 +257,38 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3):
     # analyze the effect of each frame on class
     model = get_model.get_model(dataset, model_name)
     video = model.get_video(path_list[path_idx])
-    logits = model.predict_video(video)
-    # k=5
-    # logits, indices = torch.topk(pred, k, dim=1)
-    # sm = F.softmax(pred, dim=1)
+    o_logits = model.predict_video(video)
 
-    f_logit_list = torch.empty(0).to(logits.device)
-    for f in frames:
-        new_frames = [i for i in frames if i!=f]
-        fvideo = func.fill_with_keep(new_frames, video, fill='past')
-        flogits = model.predict_video(fvideo)
-        f_logit_list = torch.concatenate([f_logit_list, flogits],dim=0)
+    k=3
+    logits, indices = torch.topk(o_logits, k, dim=1)
+
+    # get greedy logits
+    i = 0
+    cls_idx = indices[0,i]
+    o_logit = o_logits[0,cls_idx]
+
+    f_logit_list = torch.empty(0).to(o_logits.device)
+    frame_totry = frames.copy()
+    ordered_f = []
+    ordered_logits = []
+    while len(frame_totry)>=2:
+        bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
+        ordered_f.append(bi)
+        ordered_logits.append(bl)
+        frame_totry = [f for f in frame_totry if f!=bi]
+    
+
     #calc metrics
     metrics = (f_logit_list - logits) / logits
+    metrics = metrics[:,indices[0,:]]
+
+    negative_items = metrics<0
+    min_indices = torch.argmin(metrics, dim=1)
+    min_classes = indices[0,min_indices]
+
+
+
+
 
     
 
