@@ -15,7 +15,8 @@ import torch
 import matplotlib.pyplot as plt
 import analyze
 from torchvision.utils import make_grid
-import analyze
+from tqdm import tqdm
+
 
 def plot_JS_seq(dataset, model_name, fname, forward):
     out_path = os.path.join(CONF.OUT_PATH, 'plots', 'JS_seq')
@@ -263,29 +264,32 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3):
     logits, indices = torch.topk(o_logits, k, dim=1)
 
     # get greedy logits
-    i = 0
-    cls_idx = indices[0,i]
-    o_logit = o_logits[0,cls_idx]
+    res = {}
+    for i in tqdm(range(k)):
+        cls_idx = indices[0,i]
+        o_logit = logits[0,i]
 
-    f_logit_list = torch.empty(0).to(o_logits.device)
-    frame_totry = frames.copy()
-    ordered_f = []
-    ordered_logits = []
-    while len(frame_totry)>=2:
-        bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
-        ordered_f.append(bi)
-        ordered_logits.append(bl)
-        frame_totry = [f for f in frame_totry if f!=bi]
-    
+        f_logit_list = torch.empty(0).to(o_logits.device)
+        frame_totry = frames.copy()
+        ordered_f = []
+        ordered_logits = []
+        norm_logits = []
+        while len(frame_totry)>=2:
+            bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
+            ordered_f.append(bi)
+            ordered_logits.append(bl.item())
+            frame_totry = [f for f in frame_totry if f!=bi]
+            norm_logits.append(((bl - o_logit) / o_logit).item())
+        res[i] = {
+            'f': ordered_f,
+            'l': ordered_logits,
+            'norm_l': norm_logits,
+            'cls': cls_idx.item()
+        }
 
-    #calc metrics
-    metrics = (f_logit_list - logits) / logits
-    metrics = metrics[:,indices[0,:]]
+    pass
 
-    negative_items = metrics<0
-    min_indices = torch.argmin(metrics, dim=1)
-    min_classes = indices[0,min_indices]
-
+        
 
 
 
