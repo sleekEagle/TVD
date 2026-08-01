@@ -357,7 +357,6 @@ def dataset_curves_sm(dataset, model, method, forward = True):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model)
 
-
     for path in path_list:
         video = model.get_video(path)
         video = video.to(model.device)

@@ -213,6 +213,61 @@ def plot_frames(dataset, model_name, fname, forward, thr=1e-3):
     plt.savefig(out_path, bbox_inches='tight', pad_inches=0, dpi=300)
     plt.show()
 
+def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3):
+    out_path = r'D:\output\TVD\plots\frames'
+    # get SFS
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    if dataset=='ucf101':
+        basenames = [os.path.basename(s) for s in path_list]
+        out_path = os.path.join(out_path, f'{fname}.png')
+    elif dataset == 'ssv2':
+        fn = fname.replace('/','_')
+        out_path = os.path.join(out_path, f'{fn}.png')
+        basenames = []
+        for s in path_list:
+            parent = os.path.basename(os.path.dirname(s))
+            base = os.path.basename(s)
+            str = f'{parent}/{base}'
+            basenames.append(str)
+
+    path_idx = basenames.index(fname)
+
+    ward = 'forward' if forward else 'backward'
+    stat_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
+    data = list(func.load_jsonl_to_dict(stat_path).items())[path_idx][1]
+
+    js = np.array(data['js_ar'])
+    idx = min(np.argwhere(js<thr))
+    frames = data['idx'][:int(idx[0])+1]
+
+    # analyze the effect of each frame on class
+    model = get_model.get_model(dataset, model_name)
+    video = model.get_video(path_list[path_idx])
+    logits = model.predict_video(video)
+    # k=5
+    # logits, indices = torch.topk(pred, k, dim=1)
+    # sm = F.softmax(pred, dim=1)
+
+    f_logit_list = torch.empty(0).to(logits.device)
+    for f in frames:
+        new_frames = [i for i in frames if i!=f]
+        fvideo = func.fill_with_keep(new_frames, video, fill='past')
+        flogits = model.predict_video(fvideo)
+        f_logit_list = torch.concatenate([f_logit_list, flogits],dim=0)
+    #calc metrics
+    metrics = (f_logit_list - logits) / logits
+
+    
+
+        
+
+
+
+
+
+    pass
+
+
 def print_sutable_samples():
     path_list, cls_list, idx_list = data_paths.get_paths('ssv2')
     data = func.load_jsonl_to_dict(r"D:\output\TVD\brute\curves_ssv2_vjepa2_backward.jsonl")
@@ -227,6 +282,6 @@ def print_sutable_samples():
 
 if __name__ == "__main__":
     # print_sutable_samples()
-    plot_frames('ssv2', 'vjepa2', 'Spilling something behind something/208122.webm', forward = True, thr=1e-2)
+    plot_cls_importance('ssv2', 'vjepa2', 'Spilling something behind something/208122.webm', forward = True, thr=1e-3)
     # js_vs_dist('ucf101', 'mc3-18')
     pass
