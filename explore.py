@@ -263,7 +263,6 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3):
     k=3
     logits, indices = torch.topk(o_logits, k, dim=1)
 
-    # get greedy logits
     res = {}
     for i in tqdm(range(k)):
         cls_idx = indices[0,i]

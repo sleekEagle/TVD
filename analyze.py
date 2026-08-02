@@ -353,14 +353,69 @@ def dataset_curves(dataset, model, method, forward = True):
             f.flush()
 
 
-def dataset_curves_sm(dataset, model, method, forward = True):
-    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    model = get_model.get_model(dataset, model)
+def get_idx_to_remove_next(model, video, existing, analyze_cls):
+    l_list = torch.empty(0).to(model.device)
+    for idx in existing:
+        keep = [i for i in existing if i!=idx]
+        fvideo = func.fill_with_keep(keep, video, 'past')
+        pred = model.predict_video(fvideo)
+        pred_l = pred[:,analyze_cls]
+        l_list = torch.concatenate([l_list, pred_l])
 
-    for path in path_list:
+    amax = torch.argmax(l_list)
+    bi = existing[amax]
+    return bi, l_list[amax]
+
+def dataset_curves_cls(dataset, model_name, method, forward = True, js_thr=1e-3):
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model_name)
+    ward = 'forward' if forward else 'backward'
+    data_path = os.path.join(CONF.OUT_PATH, 'brute', f'curves_{dataset}_{model_name}_{ward}.jsonl')
+    data = func.load_jsonl_to_dict(data_path)
+
+    #sanity check
+    for i,k in enumerate(data.keys()):
+        assert k == os.path.basename(path_list[i]), 'key mismatch'
+
+
+    for i, path in enumerate(path_list):
         video = model.get_video(path)
         video = video.to(model.device)
-        fname = os.path.basename(path)
+        k = list(data.keys())[i]
+        d = data[k]
+
+        js = np.array(d['js_ar'])
+        idx = min(np.argwhere(js<js_thr))
+        frames = d['idx'][:int(idx[0])+1]
+        o_logits = model.predict_video(video)
+
+        k=3
+        logits, indices = torch.topk(o_logits, k, dim=1)
+        res = {}
+        for i in tqdm(range(k)):
+            cls_idx = indices[0,i]
+            o_logit = logits[0,i]
+
+            frame_totry = frames.copy()
+            ordered_f = []
+            ordered_logits = []
+            norm_logits = []
+            while len(frame_totry)>=2:
+                bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
+                ordered_f.append(bi)
+                ordered_logits.append(bl.item())
+                frame_totry = [f for f in frame_totry if f!=bi]
+                norm_logits.append(((bl - o_logit) / o_logit).item())
+            res[i] = {
+                'f': ordered_f,
+                'l': ordered_logits,
+                'norm_l': norm_logits,
+                'cls': cls_idx.item()
+            }
+
+
+
+
         L = video.size(2)
         greedy_l = get_greedy_logit(video, model, forward, analyze_cls=None).cpu().numpy()
         idx = brute_logit(video, model, greedy_l, forward, analyze_cls=None) 
@@ -587,4 +642,4 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('diving48', 'vjepa2', forward = False, select='random')
-    dataset_curves_sm('ucf101', 'mc3-18', 'brute', forward = False)
+    dataset_curves_cls('ucf101', 'mc3-18', 'brute', forward = False)
