@@ -380,8 +380,8 @@ def dataset_curves_cls(dataset, model_name, method, forward = True, js_thr=1e-3)
         assert k == os.path.basename(path_list[i]), 'key mismatch'
 
     with open(out_path, 'a') as f:
-        for i, path in tqdm(enumerate(path_list)):
-            video = model.get_video(path)
+        for i in tqdm(range(len(path_list))):
+            video = model.get_video(path_list[i])
             video = video.to(model.device)
             fname = list(data.keys())[i]
             d = data[fname]
@@ -648,4 +648,4 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('diving48', 'vjepa2', forward = False, select='random')
-    dataset_curves_cls('ucf101', 'mc3-18', 'brute', forward = False)
+    dataset_curves_cls('ucf101', 'mc3-18', 'brute', forward = True)
