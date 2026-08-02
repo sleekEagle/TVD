@@ -413,6 +413,12 @@ def dataset_curves_cls(dataset, model_name, method, forward = True, js_thr=1e-3)
                 'cls': cls_idx.item()
             }
 
+            fvideo = func.fill_with_keep([12], video, 'past')
+            pred = model.predict_video(fvideo)
+            l = pred[0,i]
+
+
+
 
 
 
