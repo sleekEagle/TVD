@@ -373,60 +373,60 @@ def dataset_curves_cls(dataset, model_name, method, forward = True, js_thr=1e-3)
     data_path = os.path.join(CONF.OUT_PATH, 'brute', f'curves_{dataset}_{model_name}_{ward}.jsonl')
     data = func.load_jsonl_to_dict(data_path)
 
+    out_path = os.path.join(CONF.OUT_PATH, 'brute', f'cls_{dataset}_{model_name}_{ward}.jsonl')
+
     #sanity check
     for i,k in enumerate(data.keys()):
         assert k == os.path.basename(path_list[i]), 'key mismatch'
 
+    with open(out_path, 'a') as f:
+        for i, path in tqdm(enumerate(path_list)):
+            video = model.get_video(path)
+            video = video.to(model.device)
+            fname = list(data.keys())[i]
+            d = data[fname]
 
-    for i, path in enumerate(path_list):
-        video = model.get_video(path)
-        video = video.to(model.device)
-        k = list(data.keys())[i]
-        d = data[k]
+            js = np.array(d['js_ar'])
+            idx = min(np.argwhere(js<js_thr))
+            frames = d['idx'][:int(idx[0])+1]
+            o_logits = model.predict_video(video)
 
-        js = np.array(d['js_ar'])
-        idx = min(np.argwhere(js<js_thr))
-        frames = d['idx'][:int(idx[0])+1]
-        o_logits = model.predict_video(video)
+            K=3
+            logits, indices = torch.topk(o_logits, K, dim=1)
+            res = {}
+            for k in range(K):
+                cls_idx = indices[0,k]
+                o_logit = logits[0,k]
 
-        k=3
-        logits, indices = torch.topk(o_logits, k, dim=1)
-        res = {}
-        for i in tqdm(range(k)):
-            cls_idx = indices[0,i]
-            o_logit = logits[0,i]
+                frame_totry = frames.copy()
+                removed_frame = []
+                result_logits = []
+                norm_logits = []
+                while len(frame_totry)>=2:
+                    bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
 
-            frame_totry = frames.copy()
-            ordered_f = []
-            ordered_logits = []
-            norm_logits = []
-            while len(frame_totry)>=2:
-                bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
-                ordered_f.append(bi)
-                ordered_logits.append(bl.item())
-                frame_totry = [f for f in frame_totry if f!=bi]
-                norm_logits.append(((bl - o_logit) / o_logit).item())
-            res[i] = {
-                'f': ordered_f,
-                'l': ordered_logits,
-                'norm_l': norm_logits,
-                'cls': cls_idx.item()
-            }
+                    # fvideo = func.fill_with_keep([i for i in frame_totry if i!=bi], video, 'past')
+                    # pred = model.predict_video(fvideo)
+                    # pred[0,i]
 
-            fvideo = func.fill_with_keep([12], video, 'past')
-            pred = model.predict_video(fvideo)
-            l = pred[0,i]
+                    removed_frame.append(bi)
+                    result_logits.append(bl.item())
+                    frame_totry = [f for f in frame_totry if f!=bi]
+                    norm_logits.append(((bl - o_logit) / o_logit).item())
+                res[k] = {
+                    'start_frames': frames,
+                    'rem_f': removed_frame,
+                    'l': result_logits,
+                    'norm_l': norm_logits,
+                    'cls': cls_idx.item()
+                }
+            d = {fname: res}
+            f.write(json.dumps(d) + '\n')
+            f.flush()
 
-
-
-
-
-
-        L = video.size(2)
-        greedy_l = get_greedy_logit(video, model, forward, analyze_cls=None).cpu().numpy()
-        idx = brute_logit(video, model, greedy_l, forward, analyze_cls=None) 
-        change_ar, cls_ar = get_video_logit(model, video, idx)
-        print(change_ar, cls_ar)
+            # fvideo = func.fill_with_keep([i for i in frames if i not in [5,12, 8,1, 10]], video, 'past')
+            # pred = model.predict_video(fvideo)
+            # pred[0,0]
 
 
 
