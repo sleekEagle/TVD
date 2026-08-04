@@ -366,7 +366,7 @@ def get_idx_to_remove_next(model, video, existing, analyze_cls):
     bi = existing[amax]
     return bi, l_list[amax]
 
-def dataset_curves_cls(dataset, model_name, method, forward = True, js_thr=1e-3):
+def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model_name)
     ward = 'forward' if forward else 'backward'
@@ -378,13 +378,17 @@ def dataset_curves_cls(dataset, model_name, method, forward = True, js_thr=1e-3)
     #sanity check
     for i,k in enumerate(data.keys()):
         assert k == os.path.basename(path_list[i]), 'key mismatch'
-
+    
+    # skip when its already there
+    existing = func.load_jsonl_to_dict(out_path)
     with open(out_path, 'a') as f:
         for i in tqdm(range(len(path_list))):
             video = model.get_video(path_list[i])
             video = video.to(model.device)
             fname = list(data.keys())[i]
             d = data[fname]
+
+            if fname in existing: continue # skip its there
 
             js = np.array(d['js_ar'])
             idx = min(np.argwhere(js<js_thr))
@@ -648,4 +652,4 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('diving48', 'vjepa2', forward = False, select='random')
-    dataset_curves_cls('ucf101', 'mc3-18', 'brute', forward = True)
+    dataset_curves_cls('ucf101', 'mc3-18', forward = True)

@@ -229,7 +229,7 @@ def get_idx_to_remove_next(model, video, existing, analyze_cls):
     return bi, l_list[amax]
     
 def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3, cls_thr=-1e-4):
-    plot_path = r'D:\output\TVD\plots\frames'
+    plot_path = os.path.join(CONF.OUT_PATH, 'plots' ,'cls_sfs')
     # get SFS
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     basenames = [os.path.basename(s) for s in path_list]
@@ -240,6 +240,24 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3, cls_thr=-
     js_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
     data = list(func.load_jsonl_to_dict(js_path).items())[path_idx]
     assert basenames[path_idx] == data[0] , 'fname mismatch'
+
+    # get pred class
+    model = get_model.get_model(dataset, model_name)
+    video = model.get_video(path_list[path_idx])
+
+    #save image
+    grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
+    plt.imshow(grid.permute(1,2,0).cpu().numpy())
+    plt.axis('off')
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    out_file_name = fname.split('.')[0]+'.png'
+    plt.savefig(os.path.join(plot_path, f'{out_file_name}'), bbox_inches='tight', pad_inches=0, dpi=300)
+
+    pred = model.predict_video(video)
+    pred_cls_idx = torch.argmax(pred,dim=1).item()
+    pred_cls = cls_list[idx_list.index(pred_cls_idx)]
+    gt_cls = cls_list[path_idx]
+    
 
     js = np.array(data[1]['js_ar'])
     idx = min(np.argwhere(js<thr))
@@ -259,8 +277,16 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3, cls_thr=-
         start_f = data[k]['start_frames']
         rem_f = data[k]['rem_f'][:idx+1]
         f_left = [f for f in start_f if f not in rem_f]
-        f_left_list[k] = f_left
+        d_ = {'f_left': f_left,
+         'cls_idx': data[k]['cls'],
+         'cls_name': cls_list[idx_list.index(data[k]['cls'])]}
+        f_left_list[k] = d_
+
+    print('**********************************************************************')
+    print(f'GT cls: {gt_cls}, pred cls: {pred_cls}')
+    print(f'original frames: {frames}')
     print(f_left_list)
+    print('**********************************************************************')
 
 
 def print_sutable_samples():
@@ -277,6 +303,6 @@ def print_sutable_samples():
 
 if __name__ == "__main__":
     # print_sutable_samples()
-    plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g01_c05.avi', forward = True, thr=1e-3)
+    plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
     # js_vs_dist('ucf101', 'mc3-18')
     pass
