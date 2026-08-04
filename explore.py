@@ -257,8 +257,10 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3, cls_thr=-
     pred_cls_idx = torch.argmax(pred,dim=1).item()
     pred_cls = cls_list[idx_list.index(pred_cls_idx)]
     gt_cls = cls_list[path_idx]
-    
 
+    sm = F.softmax(pred, dim=1)
+    sm_vals, indices = torch.topk(sm, 3, dim=1)
+    
     js = np.array(data[1]['js_ar'])
     idx = min(np.argwhere(js<thr))
     frames = data[1]['idx'][:int(idx[0])+1]
@@ -283,6 +285,7 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3, cls_thr=-
         f_left_list[k] = d_
 
     print('**********************************************************************')
+    print(f'sm values : {sm_vals.cpu()[0].tolist()}')
     print(f'GT cls: {gt_cls}, pred cls: {pred_cls}')
     print(f'original frames: {frames}')
     print(f_left_list)

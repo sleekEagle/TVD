@@ -354,17 +354,23 @@ def dataset_curves(dataset, model, method, forward = True):
 
 
 def get_idx_to_remove_next(model, video, existing, analyze_cls):
+    # o_pred = model.predict_video(video)
+    # o_sm = F.softmax(o_pred, dim=1)
+
     l_list = torch.empty(0).to(model.device)
+    sm_list = torch.empty(0).to(model.device)
     for idx in existing:
         keep = [i for i in existing if i!=idx]
         fvideo = func.fill_with_keep(keep, video, 'past')
         pred = model.predict_video(fvideo)
         pred_l = pred[:,analyze_cls]
+        pred_sm = F.softmax(pred, dim=1)[:,analyze_cls]
         l_list = torch.concatenate([l_list, pred_l])
+        sm_list = torch.concatenate([sm_list, pred_sm])
 
     amax = torch.argmax(l_list)
     bi = existing[amax]
-    return bi, l_list[amax]
+    return bi, l_list[amax], sm_list[amax]
 
 def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
@@ -380,7 +386,11 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
         assert k == os.path.basename(path_list[i]), 'key mismatch'
     
     # skip when its already there
-    existing = func.load_jsonl_to_dict(out_path)
+    if os.path.exists(out_path):
+        existing = func.load_jsonl_to_dict(out_path)
+    else:
+        existing = {}
+        
     with open(out_path, 'a') as f:
         for i in tqdm(range(len(path_list))):
             video = model.get_video(path_list[i])
@@ -388,15 +398,24 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
             fname = list(data.keys())[i]
             d = data[fname]
 
-            if fname in existing: continue # skip its there
+            # if fname in existing: continue # skip its there
 
             js = np.array(d['js_ar'])
             idx = min(np.argwhere(js<js_thr))
             frames = d['idx'][:int(idx[0])+1]
             o_logits = model.predict_video(video)
+            o_sm = F.softmax(o_logits, dim=1)
 
             K=3
             logits, indices = torch.topk(o_logits, K, dim=1)
+            sms, _ = torch.topk(o_sm, K, dim=1)
+
+            # filled sm
+            fvideo = func.fill_with_keep(frames, video, 'past')
+            f_pred = model.predict_video(fvideo)
+            f_sm = F.softmax(f_pred, dim=1)
+            fsms, _ = torch.topk(f_sm, K, dim=1)
+
             res = {}
             for k in range(K):
                 cls_idx = indices[0,k]
@@ -405,9 +424,10 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
                 frame_totry = frames.copy()
                 removed_frame = []
                 result_logits = []
+                result_sm = []
                 norm_logits = []
                 while len(frame_totry)>=2:
-                    bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
+                    bi, bl, bsm = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
 
                     # fvideo = func.fill_with_keep([i for i in frame_totry if i!=bi], video, 'past')
                     # pred = model.predict_video(fvideo)
@@ -415,15 +435,19 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
 
                     removed_frame.append(bi)
                     result_logits.append(bl.item())
+                    result_sm.append(bsm.item())
                     frame_totry = [f for f in frame_totry if f!=bi]
                     norm_logits.append(((bl - o_logit) / o_logit).item())
                 res[k] = {
                     'start_frames': frames,
                     'rem_f': removed_frame,
                     'l': result_logits,
+                    'sm': result_sm,
                     'norm_l': norm_logits,
                     'cls': cls_idx.item()
                 }
+            res['orig_sm'] = sms.cpu()[0].tolist()
+            res['filled_sm'] = fsms.cpu()[0].tolist()
             d = {fname: res}
             f.write(json.dumps(d) + '\n')
             f.flush()
