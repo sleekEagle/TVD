@@ -390,7 +390,7 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
         existing = func.load_jsonl_to_dict(out_path)
     else:
         existing = {}
-        
+
     with open(out_path, 'a') as f:
         for i in tqdm(range(len(path_list))):
             video = model.get_video(path_list[i])
@@ -411,10 +411,13 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
             sms, _ = torch.topk(o_sm, K, dim=1)
 
             # filled sm
-            fvideo = func.fill_with_keep(frames, video, 'past')
-            f_pred = model.predict_video(fvideo)
-            f_sm = F.softmax(f_pred, dim=1)
-            fsms, _ = torch.topk(f_sm, K, dim=1)
+            if len(frames) == video.size(2):
+                fsms = sms
+            else:
+                fvideo = func.fill_with_keep(frames, video, 'past')
+                f_pred = model.predict_video(fvideo)
+                f_sm = F.softmax(f_pred, dim=1)
+                fsms, _ = torch.topk(f_sm, K, dim=1)
 
             res = {}
             for k in range(K):
