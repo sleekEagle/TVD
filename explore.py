@@ -228,80 +228,39 @@ def get_idx_to_remove_next(model, video, existing, analyze_cls):
     bi = existing[amax]
     return bi, l_list[amax]
     
-def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3):
-    out_path = r'D:\output\TVD\plots\frames'
+def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3, cls_thr=-1e-4):
+    plot_path = r'D:\output\TVD\plots\frames'
     # get SFS
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    if dataset=='ucf101':
-        basenames = [os.path.basename(s) for s in path_list]
-        out_path = os.path.join(out_path, f'{fname}.png')
-    elif dataset == 'ssv2':
-        fn = fname.replace('/','_')
-        out_path = os.path.join(out_path, f'{fn}.png')
-        basenames = []
-        for s in path_list:
-            parent = os.path.basename(os.path.dirname(s))
-            base = os.path.basename(s)
-            str = f'{parent}/{base}'
-            basenames.append(str)
-
+    basenames = [os.path.basename(s) for s in path_list]
     path_idx = basenames.index(fname)
 
+    # read JS data
     ward = 'forward' if forward else 'backward'
-    stat_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
-    data = list(func.load_jsonl_to_dict(stat_path).items())[path_idx][1]
+    js_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
+    data = list(func.load_jsonl_to_dict(js_path).items())[path_idx]
+    assert basenames[path_idx] == data[0] , 'fname mismatch'
 
-    js = np.array(data['js_ar'])
+    js = np.array(data[1]['js_ar'])
     idx = min(np.argwhere(js<thr))
-    frames = data['idx'][:int(idx[0])+1]
+    frames = data[1]['idx'][:int(idx[0])+1]
 
-    # analyze the effect of each frame on class
-    model = get_model.get_model(dataset, model_name)
-    video = model.get_video(path_list[path_idx])
-    o_logits = model.predict_video(video)
+    # read cls wise data
+    cls_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'cls_{dataset}_{model_name}_{ward}.jsonl')
+    data = list(func.load_jsonl_to_dict(cls_path).items())[path_idx]
+    assert basenames[path_idx] == data[0] , 'fname mismatch'
 
-    k=3
-    logits, indices = torch.topk(o_logits, k, dim=1)
-
-    res = {}
-    for i in tqdm(range(k)):
-        cls_idx = indices[0,i]
-        o_logit = logits[0,i]
-
-        f_logit_list = torch.empty(0).to(o_logits.device)
-        frame_totry = frames.copy()
-        ordered_f = []
-        ordered_logits = []
-        norm_logits = []
-        while len(frame_totry)>=2:
-            bi, bl = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
-            ordered_f.append(bi)
-            ordered_logits.append(bl.item())
-            frame_totry = [f for f in frame_totry if f!=bi]
-            norm_logits.append(((bl - o_logit) / o_logit).item())
-        res[i] = {
-            'f': ordered_f,
-            'l': ordered_logits,
-            'norm_l': norm_logits,
-            'cls': cls_idx.item()
-        }
-
-    pass
-
-        
-
-
-
-
-    
-
-        
-
-
-
-
-
-    pass
+    data = data[1]
+    f_left_list = {}
+    for k in data:
+        valid_ar = np.argwhere(np.array(data[k]['norm_l']) > cls_thr)
+        if len(valid_ar)==0: continue
+        idx = max(valid_ar)[0]
+        start_f = data[k]['start_frames']
+        rem_f = data[k]['rem_f'][:idx+1]
+        f_left = [f for f in start_f if f not in rem_f]
+        f_left_list[k] = f_left
+    print(f_left_list)
 
 
 def print_sutable_samples():
@@ -318,6 +277,6 @@ def print_sutable_samples():
 
 if __name__ == "__main__":
     # print_sutable_samples()
-    plot_cls_importance('ssv2', 'vjepa2', 'Spilling something behind something/208122.webm', forward = True, thr=1e-3)
+    plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g01_c05.avi', forward = True, thr=1e-3)
     # js_vs_dist('ucf101', 'mc3-18')
     pass
