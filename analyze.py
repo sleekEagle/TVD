@@ -380,6 +380,8 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
     data = func.load_jsonl_to_dict(data_path)
 
     out_path = os.path.join(CONF.OUT_PATH, 'brute', f'cls_{dataset}_{model_name}_{ward}.jsonl')
+    if not os.path.exists(out_path):
+        os.makedirs(out_path, exist_ok=True)
 
     #sanity check
     for i,k in enumerate(data.keys()):
@@ -398,7 +400,7 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
             fname = list(data.keys())[i]
             d = data[fname]
 
-            # if fname in existing: continue # skip its there
+            if fname in existing: continue # skip its there
 
             js = np.array(d['js_ar'])
             idx = min(np.argwhere(js<js_thr))
@@ -612,7 +614,7 @@ def mmd_rbf(X, Y, gamma=1.0):
 
     return Kxx.mean() + Kyy.mean() - 2 * Kxy.mean()
 
-def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'random', N_ITR=4):
+def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'random', N_ITR=1):
     out_path = CONF.OUT_PATH
     out_file = os.path.join(out_path, 'brute')
     ward = 'forward' if forward else 'backward'
@@ -678,5 +680,5 @@ if __name__ == "__main__":
     # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
-    # distribution_mmd('diving48', 'vjepa2', forward = False, select='random')
-    dataset_curves_cls('ucf101', 'mc3-18', forward = True)
+    # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
+    dataset_curves_cls('ucf101', 'r3d-18', forward = True)
