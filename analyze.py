@@ -380,6 +380,7 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
     data = func.load_jsonl_to_dict(data_path)
 
     out_path = os.path.join(CONF.SAVE_PATH, 'brute', f'cls_{dataset}_{model_name}_{ward}.jsonl')
+    
     if not os.path.exists(os.path.dirname(out_path)):
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
