@@ -379,9 +379,9 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
     data_path = os.path.join(CONF.OUT_PATH, 'brute', f'curves_{dataset}_{model_name}_{ward}.jsonl')
     data = func.load_jsonl_to_dict(data_path)
 
-    out_path = os.path.join(CONF.OUT_PATH, 'brute', f'cls_{dataset}_{model_name}_{ward}.jsonl')
-    if not os.path.exists(out_path):
-        os.makedirs(out_path, exist_ok=True)
+    out_path = os.path.join(CONF.SAVE_PATH, 'brute', f'cls_{dataset}_{model_name}_{ward}.jsonl')
+    if not os.path.exists(os.path.dirname(out_path)):
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
     #sanity check
     for i,k in enumerate(data.keys()):
@@ -681,4 +681,5 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
-    dataset_curves_cls('ucf101', 'r3d-18', forward = True)
+    # dataset_curves_cls('ucf101', 'mc3-18', forward = False)
+    dataset_curves_cls('ssv2', 'vjepa2', forward = False)
