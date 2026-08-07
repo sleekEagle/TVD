@@ -396,6 +396,7 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
 
     with open(out_path, 'a') as f:
         for i in tqdm(range(len(path_list))):
+            if i<=337: continue
             video = model.get_video(path_list[i])
             video = video.to(model.device)
             fname = list(data.keys())[i]
@@ -465,7 +466,7 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
 
 
 def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
-    out_path = CONF.OUT_PATH
+    out_path = CONF.SAVE_PATH
     out_file = os.path.join(out_path, method)
     if method in ['random', 'facility']:
         out_path = os.path.join(out_file, f'multi_{dataset}_{model_name}.jsonl') 
@@ -678,7 +679,7 @@ def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'ra
 
 
 if __name__ == "__main__":
-    # dataset_multiple_SFS('ucf101', 'r3d-18', 'brute', forward=True)
+    # dataset_multiple_SFS('ssv2', 'tformer_base', 'brute', forward=False)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')

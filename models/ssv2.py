@@ -125,7 +125,7 @@ class TFORMER_b(nn.Module):
         # Load and sample frames
         frames = self._load_video(path)
         frames = self._sample_frames(frames)
-        inputs = self.processor(images=frames, return_tensors="pt")
+        inputs = self.processor(images=frames, return_tensors="pt").to(self.device)
         return inputs['pixel_values'].permute(0,2,1,3,4) # [1,3,8,224,224]
 
     

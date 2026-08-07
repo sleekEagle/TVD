@@ -303,9 +303,33 @@ def print_sutable_samples():
             print(path_list[i])
 
 
+'''
+ucf101:
+    mc3-18: 1.9947131905894793
+    r3d-18: 1.1726143272535026
+
+ssv2:
+    vjepa2: 1.2088122605363985
+    tformer-base: 1.0842911877394636
+'''
+def calc_cls_sfs_metrics(dataset, model_name, forward, thr=1e-3, cls_thr=-1e-4):
+    ward = 'forward' if forward else 'backward'
+    data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'multi_{dataset}_{model_name}_{ward}.jsonl')
+    data_dict = func.load_jsonl_to_dict(data_path)
+
+    n_sum = 0
+    for k in data_dict:
+        sfs = data_dict[k]
+        n_sum += (len(sfs)+1)
+
+    mean_sum = n_sum / len(data_dict)
+    print('*********************************')
+    print(f'mean n SFS: {mean_sum}')
+    print('*********************************')
 
 if __name__ == "__main__":
     # print_sutable_samples()
-    plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
+    # plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
+    calc_cls_sfs_metrics('ssv2', 'tformer_base', False)
     # js_vs_dist('ucf101', 'mc3-18')
     pass
