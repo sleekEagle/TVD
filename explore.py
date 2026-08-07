@@ -312,7 +312,7 @@ ssv2:
     vjepa2: 1.2088122605363985
     tformer-base: 1.0842911877394636
 '''
-def calc_cls_sfs_metrics(dataset, model_name, forward, thr=1e-3, cls_thr=-1e-4):
+def calc_multi_sfs_metrics(dataset, model_name, forward, thr=1e-3, cls_thr=-1e-4):
     ward = 'forward' if forward else 'backward'
     data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'multi_{dataset}_{model_name}_{ward}.jsonl')
     data_dict = func.load_jsonl_to_dict(data_path)
@@ -327,9 +327,32 @@ def calc_cls_sfs_metrics(dataset, model_name, forward, thr=1e-3, cls_thr=-1e-4):
     print(f'mean n SFS: {mean_sum}')
     print('*********************************')
 
+    # for i,k in enumerate(data_dict):
+    #     sfs = data_dict[k]
+    #     if len(sfs)>=1:
+    #         print(i)
+
+def plot_multi_sfs(dataset, model_name, forward, i, thr=1e-3):
+    ward = 'forward' if forward else 'backward'
+    data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'multi_{dataset}_{model_name}_{ward}.jsonl')
+    mul_data_dict = func.load_jsonl_to_dict(data_path)
+
+    data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
+    data_dict = func.load_jsonl_to_dict(data_path)
+
+    sfs1 = data_dict[list(data_dict.keys())[i]]
+    js_ar = np.array(sfs1['js_ar'])
+    idx = min(np.argwhere(js_ar<thr))[0]
+    sfs1 = [sfs1['idx'][:idx+1]]
+    sfs2 = mul_data_dict[list(mul_data_dict.keys())[i]]
+    mul_sfs = sfs1 + sfs2
+
+    pass
+
+
 if __name__ == "__main__":
     # print_sutable_samples()
     # plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
-    calc_cls_sfs_metrics('ssv2', 'tformer_base', False)
+    plot_multi_sfs('ssv2', 'vjepa2', False, 427)
     # js_vs_dist('ucf101', 'mc3-18')
     pass
