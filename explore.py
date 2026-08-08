@@ -292,6 +292,46 @@ def plot_cls_importance(dataset, model_name, fname, forward, thr=1e-3, cls_thr=-
     print('**********************************************************************')
 
 
+def cls_metrics(dataset, model_name, thr=-1e-3):
+    data_path = os.path.join(CONF.OUT_PATH, 'brute', f'cls_{dataset}_{model_name}_backward.jsonl')
+    data = func.load_jsonl_to_dict(data_path)
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model_name)
+
+    # analyze the top class
+    correct = 0
+    n_frames = 0
+    for i, k in tqdm(enumerate(data)):
+        norm_l = np.array(data[k]['0']['norm_l'])
+        argwhere = np.argwhere(norm_l>thr)
+        if len(argwhere)>0: 
+            idx = int(max(argwhere[:,0]))
+            rem_f = data[k]['0']['rem_f'][:idx+1]
+            existing_f = [f for f in data[k]['0']['start_frames'] if f not in rem_f]
+            # assert torch.abs(max_l - data[k]['0']['l'][idx])<0.01, 'Does not match'
+        else:
+            existing_f = data[k]['0']['start_frames']
+
+        #calc accuracy
+        path = path_list[i]
+        video = model.get_video(path)
+        if len(existing_f) == video.size(2):
+            fvideo = video
+        else:
+            fvideo = func.fill_with_keep(existing_f, video, 'past')
+        pred = model.predict_video(fvideo)
+        pred_cls = torch.argmax(pred[0,:])
+        max_l = pred[0,pred_cls]
+
+        if pred_cls==idx_list[i]:
+            correct += 1
+
+        n_frames += len(existing_f)
+
+    print(f'acc: {correct/len(path_list)}, n_frames: {n_frames/len(path_list)}')
+
+
 def print_sutable_samples():
     path_list, cls_list, idx_list = data_paths.get_paths('ssv2')
     data = func.load_jsonl_to_dict(r"D:\output\TVD\brute\curves_ssv2_vjepa2_backward.jsonl")
@@ -369,6 +409,8 @@ def plot_multi_sfs(dataset, model_name, forward, i, thr=1e-3):
 if __name__ == "__main__":
     # print_sutable_samples()
     # plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
-    plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
+    # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
+
     # js_vs_dist('ucf101', 'mc3-18')
+    cls_metrics('ucf101', 'r3d-18', thr=1e-1)
     pass
