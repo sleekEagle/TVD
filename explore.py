@@ -333,6 +333,8 @@ def calc_multi_sfs_metrics(dataset, model_name, forward, thr=1e-3, cls_thr=-1e-4
     #         print(i)
 
 def plot_multi_sfs(dataset, model_name, forward, i, thr=1e-3):
+    plot_path = os.path.join(CONF.OUT_PATH, 'results', 'plots', 'mul_sfs')
+
     ward = 'forward' if forward else 'backward'
     data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'multi_{dataset}_{model_name}_{ward}.jsonl')
     mul_data_dict = func.load_jsonl_to_dict(data_path)
@@ -346,13 +348,27 @@ def plot_multi_sfs(dataset, model_name, forward, i, thr=1e-3):
     sfs1 = [sfs1['idx'][:idx+1]]
     sfs2 = mul_data_dict[list(mul_data_dict.keys())[i]]
     mul_sfs = sfs1 + sfs2
+    print(mul_sfs)
 
-    pass
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model_name)
+    video = model.get_video(path_list[i])
+
+    #save image
+    grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
+    plt.imshow(grid.permute(1,2,0).cpu().numpy())
+    plt.axis('off')
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    out_file_name = os.path.basename(os.path.dirname(path_list[i])) + '_' + os.path.basename(path_list[i]).split('.')[0] + '.png'
+    print(f'{out_file_name} {mul_sfs}')
+
+    plt.savefig(os.path.join(plot_path, f'{out_file_name}'), bbox_inches='tight', pad_inches=0, dpi=300)
+
 
 
 if __name__ == "__main__":
     # print_sutable_samples()
     # plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
-    plot_multi_sfs('ssv2', 'vjepa2', False, 427)
+    plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
     # js_vs_dist('ucf101', 'mc3-18')
     pass
