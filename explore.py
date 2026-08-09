@@ -303,8 +303,17 @@ def cls_metrics(dataset, model_name, thr=-1e-3):
     correct = 0
     n_frames = 0
     for i, k in tqdm(enumerate(data)):
-        norm_l = np.array(data[k]['0']['norm_l'])
-        argwhere = np.argwhere(norm_l>thr)
+        # get original pred
+        path = path_list[i]
+        video = model.get_video(path)
+        pred = model.predict_video(video)
+        pred = F.softmax(pred, dim=1)
+        pred_cls = torch.argmax(pred, dim=1)
+        o_sm = pred[0,pred_cls].item()
+        sm_ar = np.array(data[k]['0']['sm'])
+        sm_change = (sm_ar-o_sm)/o_sm
+        argwhere = np.argwhere(sm_change > thr)
+
         if len(argwhere)>0: 
             idx = int(max(argwhere[:,0]))
             rem_f = data[k]['0']['rem_f'][:idx+1]
@@ -314,8 +323,6 @@ def cls_metrics(dataset, model_name, thr=-1e-3):
             existing_f = data[k]['0']['start_frames']
 
         #calc accuracy
-        path = path_list[i]
-        video = model.get_video(path)
         if len(existing_f) == video.size(2):
             fvideo = video
         else:
@@ -412,5 +419,5 @@ if __name__ == "__main__":
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
 
     # js_vs_dist('ucf101', 'mc3-18')
-    cls_metrics('ucf101', 'r3d-18', thr=3)
+    cls_metrics('ucf101', 'mc3-18', thr=-1e-3)
     pass

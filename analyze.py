@@ -396,7 +396,6 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
 
     with open(out_path, 'a') as f:
         for i in tqdm(range(len(path_list))):
-            if i<=1009: continue
             video = model.get_video(path_list[i])
             video = video.to(model.device)
             fname = list(data.keys())[i]
