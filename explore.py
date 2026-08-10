@@ -419,5 +419,5 @@ if __name__ == "__main__":
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
 
     # js_vs_dist('ucf101', 'mc3-18')
-    cls_metrics('ucf101', 'mc3-18', thr=-1e-3)
+    cls_metrics('ucf101', 'r3d-18', thr=1e-2)
     pass

@@ -372,7 +372,8 @@ def get_idx_to_remove_next(model, video, existing, analyze_cls):
     bi = existing[amax]
     return bi, l_list[amax], sm_list[amax]
 
-def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
+
+def dataset_curves_cls_refine(dataset, model_name, forward = True, js_thr=1e-3):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model_name)
     ward = 'forward' if forward else 'backward'
@@ -454,6 +455,64 @@ def dataset_curves_cls(dataset, model_name, forward = True, js_thr=1e-3):
                 }
             res['orig_sm'] = sms.cpu()[0].tolist()
             res['filled_sm'] = fsms.cpu()[0].tolist()
+            d = {fname: res}
+            f.write(json.dumps(d) + '\n')
+            f.flush()
+
+            # fvideo = func.fill_with_keep([i for i in frames if i not in [5,12, 8,1, 10]], video, 'past')
+            # pred = model.predict_video(fvideo)
+            # pred[0,0]
+
+def dataset_curves_cls(dataset, model_name):
+    out_path = CONF.SAVE_PATH
+    out_file = os.path.join(out_path, 'brute', f'cls_scratch_{dataset}_{model_name}_backward.jsonl')
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model_name)
+
+    
+    # skip when its already there
+    if os.path.exists(out_file):
+        existing = func.load_jsonl_to_dict(out_file)
+    else:
+        existing = {}
+
+    with open(out_file, 'a') as f:
+        for i in tqdm(range(len(path_list))):
+            video = model.get_video(path_list[i])
+            video = video.to(model.device)
+            logits = model.predict_video(video)
+            sms = F.softmax(logits, dim=1)
+            argmax = torch.argmax(logits, dim=1)
+            o_logit = logits[0,argmax][0]
+            o_sm = sms[0,argmax][0]
+            cls_idx = argmax[0]
+
+            fname = os.path.basename(os.path.dirname(path_list[i]))+'\\'+os.path.basename(path_list[i])
+            if fname in existing: continue # skip its there
+
+            frames = list(range(video.size(2)))
+            frame_totry = frames.copy()
+            removed_frame = []
+            result_logits = []
+            result_sm = []
+            while len(frame_totry)>=2:
+                bi, bl, bsm = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
+                removed_frame.append(bi)
+                result_logits.append(bl.item())
+                result_sm.append(bsm.item())
+                frame_totry = [f for f in frame_totry if f!=bi]
+            res = {
+                'start_frames': frames,
+                'rem_f': removed_frame,
+                'l': result_logits,
+                'sm': result_sm,
+                'orig_l': o_logit.item(),
+                'orig_sm': o_sm.item(),
+                'cls': cls_idx.item(),
+                'gt_cls': idx_list[i]
+            }
+
             d = {fname: res}
             f.write(json.dumps(d) + '\n')
             f.flush()
@@ -683,4 +742,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)
-    dataset_curves_cls('ssv2', 'vjepa2', forward = False)
+    dataset_curves_cls('ucf101', 'mc3-18')
