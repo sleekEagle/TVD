@@ -432,6 +432,11 @@ def calc_gradcam(video, model, analyze_cls):
         target=analyze_cls
     )
     f_attrib = torch.mean(attribution, dim=(3,4)).squeeze()
+    if f_attrib.size(0)!=video.size(2):
+        f_reshaped = f_attrib.view(1, 1, -1)
+        x_interpolated = F.interpolate(f_reshaped, size=video.size(2), mode='linear', align_corners=False)
+        f_attrib = x_interpolated.squeeze()
+
     frame_totry = torch.argsort(f_attrib).cpu().tolist()
     removed_frame, result_logits, result_sm =  calc_metrics(video, model, analyze_cls, frame_totry)
 
@@ -865,4 +870,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)s
-    dataset_curves_cls('ssv2', 'vjepa2', 'facility')
+    dataset_curves_cls('ssv2', 'vjepa2', 'gradcam')

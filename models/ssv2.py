@@ -27,6 +27,7 @@ class VJEPA2(nn.Module):
         
         self.features = {}
         self.handle = self.model.pooler.self_attention_layers[2].mlp.fc2.register_forward_hook(self.hook_fn)
+        self.gradcam_layer = self.model.vjepa2.encoder.embeddings.patch_embeddings.proj
 
     def hook_fn(self, module, input, output):
         self.features['features'] = output.mean(dim=1).detach()
