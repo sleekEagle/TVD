@@ -483,6 +483,7 @@ def calc_saliency(video, model, analyze_cls):
         'sm': result_sm
     }
     return res
+
     
 
 
@@ -583,7 +584,10 @@ def dataset_curves_cls(dataset, model_name, method):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model_name)
 
-    
+    if method=='facility':
+        fac_file = os.path.join(os.path.dirname(out_file), f'curves_{dataset}_{model_name}.jsonl')
+        fac_d = func.load_jsonl_to_dict(fac_file)
+
     # skip when its already there
     if os.path.exists(out_file):
         existing = func.load_jsonl_to_dict(out_file)
@@ -615,7 +619,22 @@ def dataset_curves_cls(dataset, model_name, method):
                 res = calc_IG(video, model, cls_idx)
             elif method=='sal':
                 res = calc_saliency(video, model, cls_idx)
+            elif method=='facility':
+                k = list(fac_d.keys())[i]
+                frames = fac_d[k]['idx']
+                removed_frame, result_logits, result_sm =  calc_metrics(video, model, cls_idx, frames)
+                res = {
+                    'start_frames': list(range(video.size(2))),
+                    'rem_f': removed_frame,
+                    'l': result_logits,
+                    'sm': result_sm
+                 }
             
+
+            res['orig_l'] = o_logit.item()
+            res['orig_sm'] = o_sm.item()
+            res['cls'] = cls_idx.item()
+            res['gt_cls'] = idx_list[i]
 
             d = {fname: res}
             f.write(json.dumps(d) + '\n')
@@ -846,4 +865,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)s
-    dataset_curves_cls('ucf101', 'mc3-18', 'ig')
+    dataset_curves_cls('ucf101', 'mc3-18', 'facility')
