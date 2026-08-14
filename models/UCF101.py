@@ -72,6 +72,7 @@ class HF_MODEL(nn.Module):
             frame_tensor = self.processor(frame_pil)
             transformed_frames.append(frame_tensor)
         return transformed_frames
+
     
     def get_video(self, video_path):
         # Load and sample frames
@@ -86,6 +87,9 @@ class HF_MODEL(nn.Module):
 
         return video_tensor # [1,3,16,112,112]
 
+    def forward(self, video):
+        outputs = self.model(video)
+        return outputs
     
     def predict_video(self, video):
         with torch.no_grad():
@@ -145,6 +149,7 @@ class MC3_18(HF_MODEL):
 
         #register hook to get features
         self.handle = self.model.avgpool.register_forward_hook(self.hook_fn)
+        self.gradcam_layer = self.model.layer4[1].conv2[1]
 
 
 # acc: 81.52260111022997

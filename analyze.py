@@ -393,24 +393,28 @@ def calc_SFS(video, model, analyze_cls):
     }
     return res
 
-def calc_random(video, model, analyze_cls):
-    frames = list(range(video.size(2)))
-    frame_totry = frames.copy()
-    random.shuffle(frame_totry)
-
+def calc_metrics(video, model, analyze_cls, ordered_frames):
     result_logits = []
     result_sm = []
     removed_frame = []
-    for i in range(len(frame_totry)-1):
-        keep = frame_totry[i+1:]
-        print(frame_totry[i+1:])
+    for i in range(len(ordered_frames)-1):
+        keep = ordered_frames[i+1:]
         fvideo = func.fill_with_keep(keep, video, 'past')
         pred = model.predict_video(fvideo)
         pred_l = pred[:,analyze_cls]
         pred_sm = F.softmax(pred, dim=1)[:,analyze_cls]
         result_logits.append(pred_l.item())
         result_sm.append(pred_sm.item())
-    removed_frame = frame_totry[:-1]
+    removed_frame = ordered_frames[:-1]
+
+    return removed_frame, result_logits, result_sm
+
+def calc_random(video, model, analyze_cls):
+    frames = list(range(video.size(2)))
+    frame_totry = frames.copy()
+    random.shuffle(frame_totry)
+
+    removed_frame, result_logits, result_sm =  calc_metrics(video, model, analyze_cls, frame_totry)
 
     res = {
         'start_frames': frames,
@@ -419,6 +423,66 @@ def calc_random(video, model, analyze_cls):
         'sm': result_sm
     }
     return res
+
+def calc_gradcam(video, model, analyze_cls):
+    from captum.attr import LayerGradCam
+    grad_cam = LayerGradCam(model, model.gradcam_layer)
+    attribution = grad_cam.attribute(
+        video,
+        target=analyze_cls
+    )
+    f_attrib = torch.mean(attribution, dim=(3,4)).squeeze()
+    frame_totry = torch.argsort(f_attrib).cpu().tolist()
+    removed_frame, result_logits, result_sm =  calc_metrics(video, model, analyze_cls, frame_totry)
+
+    res = {
+        'start_frames': list(range(video.size(2))),
+        'rem_f': removed_frame,
+        'l': result_logits,
+        'sm': result_sm
+    }
+    return res
+
+def calc_IG(video, model, analyze_cls):
+    from captum.attr import IntegratedGradients
+    model.eval()
+    ig = IntegratedGradients(model)
+    attribution = ig.attribute(
+        video,
+        target=analyze_cls
+    )
+    f_attrib = torch.mean(attribution, dim=(3,4)).squeeze()
+    frame_totry = torch.argsort(f_attrib).cpu().tolist()
+    removed_frame, result_logits, result_sm =  calc_metrics(video, model, analyze_cls, frame_totry)
+
+    res = {
+        'start_frames': list(range(video.size(2))),
+        'rem_f': removed_frame,
+        'l': result_logits,
+        'sm': result_sm
+    }
+    return res
+
+def calc_saliency(video, model, analyze_cls):
+    from captum.attr import Saliency
+
+    saliency = Saliency(model)
+    attribution = saliency.attribute(
+        video,
+        target=analyze_cls
+    )
+    f_attrib = torch.mean(attribution, dim=(3,4)).squeeze()
+    frame_totry = torch.argsort(f_attrib).cpu().tolist()
+    removed_frame, result_logits, result_sm =  calc_metrics(video, model, analyze_cls, frame_totry)
+
+    res = {
+        'start_frames': list(range(video.size(2))),
+        'rem_f': removed_frame,
+        'l': result_logits,
+        'sm': result_sm
+    }
+    return res
+    
 
 
 def dataset_curves_cls_refine(dataset, model_name, forward = True, js_thr=1e-3):
@@ -544,10 +608,13 @@ def dataset_curves_cls(dataset, model_name, method):
                 res = calc_SFS(video, model, cls_idx)
             elif method=='random':
                  res = calc_random(video, model, cls_idx)
-                
-
-
-
+            elif method=='gradcam':
+                res = calc_gradcam(video, model, cls_idx)
+            elif method=='ig':
+                res = calc_IG(video, model, cls_idx)
+            elif method=='sal':
+                res = calc_saliency(video, model, cls_idx)
+            
 
             d = {fname: res}
             f.write(json.dumps(d) + '\n')
@@ -778,4 +845,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)
-    dataset_curves_cls('ucf101', 'mc3-18', 'random')
+    dataset_curves_cls('ucf101', 'mc3-18', 'ig')
