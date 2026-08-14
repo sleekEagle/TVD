@@ -865,4 +865,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)s
-    dataset_curves_cls('ucf101', 'r3d-18', 'facility')
+    dataset_curves_cls('ssv2', 'vjepa2', 'facility')
