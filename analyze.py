@@ -621,7 +621,7 @@ def dataset_curves_cls(dataset, model_name, method):
                 res = calc_saliency(video, model, cls_idx)
             elif method=='facility':
                 k = list(fac_d.keys())[i]
-                frames = fac_d[k]['idx']
+                frames = fac_d[k]['idx'][::-1] # turn into least to most important
                 removed_frame, result_logits, result_sm =  calc_metrics(video, model, cls_idx, frames)
                 res = {
                     'start_frames': list(range(video.size(2))),
@@ -865,4 +865,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)s
-    dataset_curves_cls('ucf101', 'mc3-18', 'facility')
+    dataset_curves_cls('ucf101', 'r3d-18', 'facility')
