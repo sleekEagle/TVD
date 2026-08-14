@@ -1,4 +1,4 @@
-OUT_PATH = r"D:\output\TVD"
+OUT_PATH = r"D:\output\TVD2"
 SAVE_PATH = OUT_PATH
 SSV2_PATH = r'C:\Users\lahir\Downloads\s2s_test'
 UCF_PATH = r'c:\Users\lahir\Downloads\UCF101\UCF-101'

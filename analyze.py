@@ -11,6 +11,7 @@ import numpy as np
 import CONF
 from tqdm import tqdm
 import json
+import random
 
 def get_video_curve(model, video, idx, forward):
     o_sm = F.softmax(model.predict_video(video),dim=1)
@@ -372,6 +373,53 @@ def get_idx_to_remove_next(model, video, existing, analyze_cls):
     bi = existing[amax]
     return bi, l_list[amax], sm_list[amax]
 
+def calc_SFS(video, model, analyze_cls):
+    frames = list(range(video.size(2)))
+    frame_totry = frames.copy()
+    removed_frame = []
+    result_logits = []
+    result_sm = []
+    while len(frame_totry)>=2:
+        bi, bl, bsm = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=analyze_cls)
+        removed_frame.append(bi)
+        result_logits.append(bl.item())
+        result_sm.append(bsm.item())
+        frame_totry = [f for f in frame_totry if f!=bi]
+    res = {
+        'start_frames': frames,
+        'rem_f': removed_frame,
+        'l': result_logits,
+        'sm': result_sm
+    }
+    return res
+
+def calc_random(video, model, analyze_cls):
+    frames = list(range(video.size(2)))
+    frame_totry = frames.copy()
+    random.shuffle(frame_totry)
+
+    result_logits = []
+    result_sm = []
+    removed_frame = []
+    for i in range(len(frame_totry)-1):
+        keep = frame_totry[i+1:]
+        print(frame_totry[i+1:])
+        fvideo = func.fill_with_keep(keep, video, 'past')
+        pred = model.predict_video(fvideo)
+        pred_l = pred[:,analyze_cls]
+        pred_sm = F.softmax(pred, dim=1)[:,analyze_cls]
+        result_logits.append(pred_l.item())
+        result_sm.append(pred_sm.item())
+    removed_frame = frame_totry[:-1]
+
+    res = {
+        'start_frames': frames,
+        'rem_f': removed_frame,
+        'l': result_logits,
+        'sm': result_sm
+    }
+    return res
+
 
 def dataset_curves_cls_refine(dataset, model_name, forward = True, js_thr=1e-3):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
@@ -463,9 +511,9 @@ def dataset_curves_cls_refine(dataset, model_name, forward = True, js_thr=1e-3):
             # pred = model.predict_video(fvideo)
             # pred[0,0]
 
-def dataset_curves_cls(dataset, model_name):
+def dataset_curves_cls(dataset, model_name, method):
     out_path = CONF.SAVE_PATH
-    out_file = os.path.join(out_path, 'brute', f'cls_scratch_{dataset}_{model_name}_backward.jsonl')
+    out_file = os.path.join(out_path, method, f'top1_{dataset}_{model_name}.jsonl')
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model_name)
@@ -475,6 +523,7 @@ def dataset_curves_cls(dataset, model_name):
     if os.path.exists(out_file):
         existing = func.load_jsonl_to_dict(out_file)
     else:
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
         existing = {}
 
     with open(out_file, 'a') as f:
@@ -491,27 +540,14 @@ def dataset_curves_cls(dataset, model_name):
             fname = os.path.basename(os.path.dirname(path_list[i]))+'\\'+os.path.basename(path_list[i])
             if fname in existing: continue # skip its there
 
-            frames = list(range(video.size(2)))
-            frame_totry = frames.copy()
-            removed_frame = []
-            result_logits = []
-            result_sm = []
-            while len(frame_totry)>=2:
-                bi, bl, bsm = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=cls_idx)
-                removed_frame.append(bi)
-                result_logits.append(bl.item())
-                result_sm.append(bsm.item())
-                frame_totry = [f for f in frame_totry if f!=bi]
-            res = {
-                'start_frames': frames,
-                'rem_f': removed_frame,
-                'l': result_logits,
-                'sm': result_sm,
-                'orig_l': o_logit.item(),
-                'orig_sm': o_sm.item(),
-                'cls': cls_idx.item(),
-                'gt_cls': idx_list[i]
-            }
+            if method=='sfs':
+                res = calc_SFS(video, model, cls_idx)
+            elif method=='random':
+                 res = calc_random(video, model, cls_idx)
+                
+
+
+
 
             d = {fname: res}
             f.write(json.dumps(d) + '\n')
@@ -742,4 +778,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)
-    dataset_curves_cls('ucf101', 'mc3-18')
+    dataset_curves_cls('ucf101', 'mc3-18', 'random')
