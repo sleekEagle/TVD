@@ -449,9 +449,10 @@ def calc_IG(video, model, analyze_cls):
     ig = IntegratedGradients(model)
     attribution = ig.attribute(
         video,
-        target=analyze_cls
+        target=analyze_cls,
+        n_steps=10
     )
-    f_attrib = torch.mean(attribution, dim=(3,4)).squeeze()
+    f_attrib = torch.mean(attribution, dim=(1,3,4)).squeeze()
     frame_totry = torch.argsort(f_attrib).cpu().tolist()
     removed_frame, result_logits, result_sm =  calc_metrics(video, model, analyze_cls, frame_totry)
 
@@ -844,5 +845,5 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
-    # dataset_curves_cls('ucf101', 'mc3-18', forward = False)
+    # dataset_curves_cls('ucf101', 'mc3-18', forward = False)s
     dataset_curves_cls('ucf101', 'mc3-18', 'ig')
