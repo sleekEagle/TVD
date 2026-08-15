@@ -76,6 +76,11 @@ class TFORMER_b(nn.Module):
 
         self.features = {}
         self.handle = self.model.timesformer.layernorm.register_forward_hook(self.hook_fn)
+        self.gradcam_layer = self.model.timesformer.encoder.layer[11].attention.output
+
+    def prep_gradcam_feat(self, f):
+        f_attrib = torch.mean(f, dim=2).squeeze()
+        return f_attrib
 
     def hook_fn(self, module, input, output):
         self.features['features'] = output.mean(dim=1).detach()
@@ -129,7 +134,12 @@ class TFORMER_b(nn.Module):
         inputs = self.processor(images=frames, return_tensors="pt").to(self.device)
         return inputs['pixel_values'].permute(0,2,1,3,4) # [1,3,8,224,224]
 
-    
+    def forward(self, x):
+        x = x.permute(0,2,1,3,4)
+        output = self.model(x)
+        logits = output.logits
+        return logits
+
     def predict_video(self, video):
         with torch.no_grad():
             outputs = self.model(video.permute(0,2,1,3,4))
