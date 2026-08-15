@@ -35,5 +35,7 @@ if __name__ == "__main__":
     # for diving48  dataset
     eval('diving48', 'vjepa2') # 68.4771573604061
 
+    
+
 
 
