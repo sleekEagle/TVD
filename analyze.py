@@ -602,6 +602,7 @@ def dataset_curves_cls(dataset, model_name, method):
 
     with open(out_file, 'a') as f:
         for i in tqdm(range(len(path_list))):
+            if i<456:continue
             video = model.get_video(path_list[i])
             video = video.to(model.device)
             logits = model.predict_video(video)
@@ -870,4 +871,4 @@ if __name__ == "__main__":
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)s
-    dataset_curves_cls('ssv2', 'tformer_base', 'gradcam')
+    dataset_curves_cls('ssv2', 'tformer_base', 'ig')
