@@ -191,6 +191,11 @@ class R3D_18(HF_MODEL):
 
         #register hook to get features
         self.handle = self.model.avgpool.register_forward_hook(self.hook_fn)
+        self.gradcam_layer = self.model.layer2[0].conv1[1]
+
+    def prep_gradcam_feat(self, f):
+        f_attrib = torch.mean(f, dim=(3,4)).squeeze()
+        return f_attrib
 
 
 '''

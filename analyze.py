@@ -455,7 +455,8 @@ def calc_IG(video, model, analyze_cls):
     attribution = ig.attribute(
         video,
         target=analyze_cls,
-        n_steps=10
+        n_steps=10,
+        internal_batch_size=2
     )
     f_attrib = torch.mean(attribution, dim=(1,3,4)).squeeze()
     frame_totry = torch.argsort(f_attrib).cpu().tolist()
@@ -869,5 +870,5 @@ if __name__ == "__main__":
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
-    # dataset_curves_cls('ucf101', 'mc3-18', forward = False)s
-    dataset_curves_cls('ssv2', 'vjepa2', 'facility')
+    # dataset_curves_cls('ucf101', 'mc3-18', forward = False)
+    dataset_curves_cls('ssv2', 'vjepa2', 'ig')
