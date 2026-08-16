@@ -189,8 +189,6 @@ def eval_mul(dataset, model, method, forward):
 
 
 if __name__ == "__main__":
-    for met in ['sfs','random', 'facility', 'gradcam', 'ig']:
-        print(met)
-        eval_curves_cls('ssv2', 'vjepa2', met)
+    eval_curves_cls('ssv2', 'vjepa2', 'random')
     # eval_acc_comp('ssv2', 'tformer_base', 'random', forward=False)
     # eval_mul('ucf101', 'r3d-18', 'brute', forward=True)
