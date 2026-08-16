@@ -18,6 +18,38 @@ def calc_auc(points):
 
 
 dir_path = CONF.OUT_PATH
+
+def eval_curves_cls(dataset, model_name, method):
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    
+    curve_file = os.path.join(dir_path, method, f'top1_{dataset}_{model_name}.jsonl')
+    data = func.load_jsonl_to_dict(curve_file)
+
+    sm_auc_avg, smnorm_auc_avg, l_auc_avg = 0,0,0
+    for path in tqdm(path_list):
+        bn = os.path.basename(path)
+        dn = os.path.basename(os.path.dirname(path))
+        fname = dn+'\\'+bn
+        dict = data[fname]
+        o_l = dict['orig_l']
+        l = np.array([o_l] + dict['l'])
+        o_sm = dict['orig_sm']
+        sm = np.array([o_sm] + dict['sm'])
+        s_norm = sm/o_sm
+        l_norm = l/o_l
+
+        smnorm_auc_avg += calc_auc(s_norm)
+        sm_auc_avg += calc_auc(sm)
+        l_auc_avg += calc_auc(l_norm)
+    sm_auc_avg/=len(path_list)
+    l_auc_avg/=len(path_list)
+    smnorm_auc_avg/=len(path_list)
+
+    print(f'avg sm AUC = {sm_auc_avg}, avg sm(norm) AUC = {smnorm_auc_avg}, avg logit ACU = {l_auc_avg}')
+
+
+
+
 def eval_curves(dataset, model, method, forward):
     if method in ['greedy', 'foolish', 'brute']:
         ward = 'forward' if forward else 'backward'
@@ -157,6 +189,6 @@ def eval_mul(dataset, model, method, forward):
 
 
 if __name__ == "__main__":
-    eval_curves('ssv2', 'tformer_base', 'random', forward=False)
-    eval_acc_comp('ssv2', 'tformer_base', 'random', forward=False)
+    eval_curves_cls('ucf101', 'r3d-18', 'sfs')
+    # eval_acc_comp('ssv2', 'tformer_base', 'random', forward=False)
     # eval_mul('ucf101', 'r3d-18', 'brute', forward=True)
