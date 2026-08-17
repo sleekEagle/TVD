@@ -701,6 +701,53 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
             f.write(json.dumps(d) + '\n')
             f.flush()
 
+def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
+    out_path = CONF.SAVE_PATH
+    data_path = os.path.join(out_path, method, f'top1_{dataset}_{model_name}.jsonl')
+    write_path = os.path.join(out_path, method, f'multop1_{dataset}_{model_name}.jsonl')
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    data = func.load_jsonl_to_dict(data_path)
+    model = get_model.get_model(dataset, model_name)
+
+    with open(write_path, 'a') as f:
+        for path in tqdm(path_list):
+            bn = os.path.basename(path)
+            dn = os.path.basename(os.path.dirname(path))
+            fname = dn + '\\' + bn
+            d = data[fname]
+            orig_sm = d['orig_sm']
+            sm = np.array([orig_sm] + d['sm'])
+
+
+            video = model.get_video(path)
+            L = video.size(2)
+            fname = os.path.basename(path)
+            f_idx = data[fname]['idx']
+            js_ar = np.array(data[fname]['js_ar'])
+            n = np.argwhere(js_ar<thr).min()
+            valid_idx = f_idx[:n+1]
+            other_idx = f_idx[n+1:]
+
+            o_logits = model.predict_video(video)
+            o_sm = F.softmax(o_logits, dim=1)
+
+            new_idx = []
+            new_idx_list = []
+            used_idx_list = []
+            search_idx = other_idx
+            while True:
+                new_idx = find_sfs_cummulative(video, model, [] , search_idx, o_sm)
+                if new_idx==-1: break
+
+                used_idx_list += new_idx
+                search_idx = [item for item in other_idx if item not in used_idx_list]
+                new_idx_list.append(new_idx)
+
+            d={fname: new_idx_list}
+            f.write(json.dumps(d) + '\n')
+            f.flush()
+
 def get_preds(video, model):
     logits = model.predict_video(video)
     sm = F.softmax(logits, dim=1)
@@ -867,9 +914,9 @@ def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'ra
 
 
 if __name__ == "__main__":
-    # dataset_multiple_SFS('ssv2', 'tformer_base', 'brute', forward=False)
+    dataset_multiple_SFS_cls('ucf101', 'mc3-18', 'sfs', thr=0.1)
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
     # dataset_curves_cls('ucf101', 'mc3-18', forward = False)
-    dataset_curves_cls('ssv2', 'vjepa2', 'ig')
+    # dataset_curves_cls('ssv2', 'vjepa2', 'ig')
