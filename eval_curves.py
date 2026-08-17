@@ -162,7 +162,12 @@ print(ACC)
 
 def eval_acc_comp_cls(dataset, model, method):
     COMP = {
-        0: 0
+        0: 0,
+        0.1: 0,
+        0.2: 0,
+        0.3: 0,
+        0.4: 0,
+        0.5: 0
     }
     ACC = {}
     for k in COMP:
@@ -195,6 +200,7 @@ def eval_acc_comp_cls(dataset, model, method):
                 n=0
             else:
                 n = aw.max()
+
             #what frames satisfy this
             removed_frames = rem_frames[:n]
             frames_left = [f for f in g['start_frames'] if f not in removed_frames]
@@ -297,7 +303,10 @@ def eval_mul(dataset, model, method, forward):
 
 
 if __name__ == "__main__":
-    # eval_curves_cls('ssv2', 'vjepa2', 'random')
-    eval_acc_comp_cls('ucf101', 'mc3-18', 'sfs')
+    # eval_curves_cls('ssv2', 'vjepa2', 'sfs')
+    eval_acc_comp_cls('ssv2', 'vjepa2', 'sfs')
+    print('**************************************************************')
+    eval_acc_comp_cls('ssv2', 'tformer_base', 'sfs')
+
     # eval_acc_comp('ssv2', 'tformer_base', 'random', forward=False)
     # eval_mul('ucf101', 'r3d-18', 'brute', forward=True)
