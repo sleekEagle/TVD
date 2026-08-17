@@ -393,6 +393,32 @@ def calc_SFS(video, model, analyze_cls):
     }
     return res
 
+def resume_SFS(video, model, existing, analyze_cls):
+    frames = existing
+    frame_totry = frames.copy()
+    removed_frame = []
+    result_logits = []
+    result_sm = []
+    # get start sm
+    fvideo = func.fill_with_keep(existing, video)
+    pred = model.predict_video(fvideo)
+    existing_sm = F.softmax(pred, dim=1)[0,analyze_cls]
+
+    while len(frame_totry)>=2:
+        bi, bl, bsm = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=analyze_cls)
+        removed_frame.append(bi)
+        result_logits.append(bl.item())
+        result_sm.append(bsm.item())
+        frame_totry = [f for f in frame_totry if f!=bi]
+    res = {
+        'start_frames': frames,
+        'rem_f': removed_frame,
+        'l': result_logits,
+        'sm': result_sm,
+        'existing_sm': existing_sm
+    }
+    return res
+
 def calc_metrics(video, model, analyze_cls, ordered_frames):
     result_logits = []
     result_sm = []
@@ -717,36 +743,60 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
             fname = dn + '\\' + bn
             d = data[fname]
             orig_sm = d['orig_sm']
-            sm = np.array([orig_sm] + d['sm'])
 
+            def get_rem_idx(d, orig_sm):
+                sm = np.array(d['sm'])
+                sm_norm = (sm-orig_sm)/orig_sm
+                where = np.argwhere(sm_norm>-1*thr)
+                if len(where)==0:
+                    rem_f=[]
+                else:
+                    n = where.max()
+                    rem_f = d['rem_f'][:n+1]
+                # sel_idx = [f for f in d['start_frames'] if f not in rem_f]
+                return rem_f
 
+            sfs_list = []
+            frames = d['start_frames']
+            existing = get_rem_idx(d, orig_sm)
             video = model.get_video(path)
-            L = video.size(2)
-            fname = os.path.basename(path)
-            f_idx = data[fname]['idx']
-            js_ar = np.array(data[fname]['js_ar'])
-            n = np.argwhere(js_ar<thr).min()
-            valid_idx = f_idx[:n+1]
-            other_idx = f_idx[n+1:]
+            analyze_cls = d['cls']
+            sfs_list.append([f for f in frames if f not in existing])
 
-            o_logits = model.predict_video(video)
-            o_sm = F.softmax(o_logits, dim=1)
+            while len(existing)>=1:
+                res = resume_SFS(video, model, existing, analyze_cls)
+                existing_ = get_rem_idx(res, orig_sm)
+                if len(existing_)==0:
+                    break
+                new_sfs = [f for f in existing if f not in existing_]
+                sfs_list.append(new_sfs)
+                existing=existing_
+                
+            # check the sfs validity. only for debugging
+            for sfs in sfs_list:
+                fvideo = func.fill_with_keep(sfs, video, 'past')
+                pred = model.predict_video(fvideo)
+                pred_sm = F.softmax(pred,dim=1)[0,d['cls']]
+                assert (pred_sm - orig_sm)/orig_sm > -1*thr, f'{sfs} non consistant threshold'
 
-            new_idx = []
-            new_idx_list = []
-            used_idx_list = []
-            search_idx = other_idx
-            while True:
-                new_idx = find_sfs_cummulative(video, model, [] , search_idx, o_sm)
-                if new_idx==-1: break
 
-                used_idx_list += new_idx
-                search_idx = [item for item in other_idx if item not in used_idx_list]
-                new_idx_list.append(new_idx)
 
-            d={fname: new_idx_list}
-            f.write(json.dumps(d) + '\n')
-            f.flush()
+
+            # new_idx = []
+            # new_idx_list = []
+            # used_idx_list = []
+            # search_idx = other_idx
+            # while True:
+            #     new_idx = find_sfs_cummulative(video, model, [] , search_idx, o_sm)
+            #     if new_idx==-1: break
+
+            #     used_idx_list += new_idx
+            #     search_idx = [item for item in other_idx if item not in used_idx_list]
+            #     new_idx_list.append(new_idx)
+
+            # d={fname: new_idx_list}
+            # f.write(json.dumps(d) + '\n')
+            # f.flush()
 
 def get_preds(video, model):
     logits = model.predict_video(video)
