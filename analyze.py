@@ -728,9 +728,8 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
             f.flush()
 
 def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
-    out_path = CONF.SAVE_PATH
-    data_path = os.path.join(out_path, method, f'top1_{dataset}_{model_name}.jsonl')
-    write_path = os.path.join(out_path, method, f'multop1_{dataset}_{model_name}.jsonl')
+    data_path = os.path.join(CONF.OUT_PATH, method, f'top1_{dataset}_{model_name}.jsonl')
+    write_path = os.path.join(CONF.SAVE_PATH, method, f'multop1_{dataset}_{model_name}.jsonl')
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     data = func.load_jsonl_to_dict(data_path)
