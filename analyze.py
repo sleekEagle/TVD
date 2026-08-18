@@ -402,7 +402,7 @@ def resume_SFS(video, model, existing, analyze_cls):
     # get start sm
     fvideo = func.fill_with_keep(existing, video)
     pred = model.predict_video(fvideo)
-    existing_sm = F.softmax(pred, dim=1)[0,analyze_cls]
+    existing_sm = F.softmax(pred, dim=1)[0,analyze_cls].item()
 
     while len(frame_totry)>=2:
         bi, bl, bsm = get_idx_to_remove_next(model, video, frame_totry, analyze_cls=analyze_cls)
@@ -415,7 +415,7 @@ def resume_SFS(video, model, existing, analyze_cls):
         'rem_f': removed_frame,
         'l': result_logits,
         'sm': result_sm,
-        'existing_sm': existing_sm
+        'orig_sm': existing_sm
     }
     return res
 
@@ -745,14 +745,14 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
             orig_sm = d['orig_sm']
 
             def get_rem_idx(d, orig_sm):
-                sm = np.array(d['sm'])
+                sm = np.array([d['orig_sm']] + d['sm'])
                 sm_norm = (sm-orig_sm)/orig_sm
                 where = np.argwhere(sm_norm>-1*thr)
                 if len(where)==0:
-                    rem_f=[]
+                    rem_f=-1
                 else:
                     n = where.max()
-                    rem_f = d['rem_f'][:n+1]
+                    rem_f = d['rem_f'][:n]
                 # sel_idx = [f for f in d['start_frames'] if f not in rem_f]
                 return rem_f
 
@@ -766,7 +766,7 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
             while len(existing)>=1:
                 res = resume_SFS(video, model, existing, analyze_cls)
                 existing_ = get_rem_idx(res, orig_sm)
-                if len(existing_)==0:
+                if existing_==-1:
                     break
                 new_sfs = [f for f in existing if f not in existing_]
                 sfs_list.append(new_sfs)
