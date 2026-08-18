@@ -757,11 +757,13 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
                 return rem_f
 
             sfs_list = []
+            res_list = []
             frames = d['start_frames']
             existing = get_rem_idx(d, orig_sm)
             video = model.get_video(path)
             analyze_cls = d['cls']
             sfs_list.append([f for f in frames if f not in existing])
+
 
             while len(existing)>=1:
                 res = resume_SFS(video, model, existing, analyze_cls)
@@ -770,33 +772,19 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
                     break
                 new_sfs = [f for f in existing if f not in existing_]
                 sfs_list.append(new_sfs)
+                res_list.append(res)
                 existing=existing_
                 
             # check the sfs validity. only for debugging
-            for sfs in sfs_list:
-                fvideo = func.fill_with_keep(sfs, video, 'past')
-                pred = model.predict_video(fvideo)
-                pred_sm = F.softmax(pred,dim=1)[0,d['cls']]
-                assert (pred_sm - orig_sm)/orig_sm > -1*thr, f'{sfs} non consistant threshold'
+            # for sfs in sfs_list:
+            #     fvideo = func.fill_with_keep(sfs, video, 'past')
+            #     pred = model.predict_video(fvideo)
+            #     pred_sm = F.softmax(pred,dim=1)[0,d['cls']]
+            #     assert (pred_sm - orig_sm)/orig_sm > -1*thr, f'{sfs} non consistant threshold'            
 
-
-
-
-            # new_idx = []
-            # new_idx_list = []
-            # used_idx_list = []
-            # search_idx = other_idx
-            # while True:
-            #     new_idx = find_sfs_cummulative(video, model, [] , search_idx, o_sm)
-            #     if new_idx==-1: break
-
-            #     used_idx_list += new_idx
-            #     search_idx = [item for item in other_idx if item not in used_idx_list]
-            #     new_idx_list.append(new_idx)
-
-            # d={fname: new_idx_list}
-            # f.write(json.dumps(d) + '\n')
-            # f.flush()
+            d={fname: {'sfs_list': sfs_list, 'res_list': res_list}}
+            f.write(json.dumps(d) + '\n')
+            f.flush()
 
 def get_preds(video, model):
     logits = model.predict_video(video)
