@@ -953,11 +953,61 @@ def distribution_mmd(dataset, model_name, forward = True, thr=1e-3, select = 'ra
         print('')
 
 
+def dino_facility(dataset, model_name):
+    import models.DINOv2 as dino
+
+    write_dir = os.path.join(CONF.SAVE_PATH, 'facility-dino')
+    os.makedirs(write_dir, exist_ok=True)
+    write_path = os.path.join(write_dir, f'{dataset}_{model_name}.jsonl')
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    cls_model = get_model.get_model(dataset, model_name)
+    emb_model = dino.DINOv2Embedder()
+
+    with open(write_path, 'a') as f:
+        for i,path in tqdm(enumerate(path_list)):
+            video = cls_model.get_video(path)
+            pred = cls_model.predict_video(video)
+            pred_cls = torch.argmax(pred,dim=1)[0]
+            pred_sm = F.softmax(pred,dim=1)
+            o_logit = pred[0,pred_cls]
+            o_sm = pred_sm[0,pred_cls]
+            fname = os.path.basename(os.path.dirname(path_list[i]))+'\\'+os.path.basename(path_list[i])
+
+            #calculaet dino embeddings
+            emb = emb_model.extract_embeddings_batch(video)
+
+            # calculate faclility location frame ordering
+            frames = emb_facilitylocation(emb, k=emb.shape[0])[::-1]
+            removed_frame, result_logits, result_sm =  calc_metrics(video, cls_model, pred_cls, frames)
+            res = {
+                    'start_frames': list(range(video.size(2))),
+                    'rem_f': removed_frame.tolist(),
+                    'l': result_logits,
+                    'sm': result_sm
+                    }
+            res['orig_l'] = o_logit.item()
+            res['orig_sm'] = o_sm.item()
+            res['cls'] = pred_cls.item()
+            res['gt_cls'] = idx_list[i]
+
+            
+            d = {fname: res}
+            f.write(json.dumps(d) + '\n')
+            f.flush()
+
+        
+
+
+
+    pass
+
 
 
 
 if __name__ == "__main__":
-    dataset_multiple_SFS_cls('ucf101', 'mc3-18', 'sfs', thr=0.1)
+    # dataset_multiple_SFS_cls('ucf101', 'mc3-18', 'sfs', thr=0.1)
+    dino_facility('ucf101', 'mc3-18')
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
