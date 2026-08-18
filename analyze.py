@@ -727,7 +727,7 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
             f.write(json.dumps(d) + '\n')
             f.flush()
 
-def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
+def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1,skipi=0):
     data_path = os.path.join(CONF.OUT_PATH, method, f'top1_{dataset}_{model_name}.jsonl')
     write_path = os.path.join(CONF.SAVE_PATH, method, f'multop1_{dataset}_{model_name}.jsonl')
     os.makedirs(os.path.dirname(write_path), exist_ok=True)
@@ -736,11 +736,17 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
     data = func.load_jsonl_to_dict(data_path)
     model = get_model.get_model(dataset, model_name)
 
+    if os.path.exists(write_path):
+        existing_data = func.load_jsonl_to_dict(write_path)
+    else:
+        existing_data = {}
+
     with open(write_path, 'a') as f:
         for path in tqdm(path_list):
             bn = os.path.basename(path)
             dn = os.path.basename(os.path.dirname(path))
             fname = dn + '\\' + bn
+            if fname in existing_data: continue
             d = data[fname]
             orig_sm = d['orig_sm']
 
@@ -763,7 +769,6 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1):
             video = model.get_video(path)
             analyze_cls = d['cls']
             sfs_list.append([f for f in frames if f not in existing])
-
 
             while len(existing)>=1:
                 res = resume_SFS(video, model, existing, analyze_cls)
