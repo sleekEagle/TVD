@@ -742,11 +742,14 @@ def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1,skipi=0):
         existing_data = {}
 
     with open(write_path, 'a') as f:
+        i = 0
         for path in tqdm(path_list):
             bn = os.path.basename(path)
             dn = os.path.basename(os.path.dirname(path))
             fname = dn + '\\' + bn
             if fname in existing_data: continue
+            if i<skipi: continue
+            i+=1
             d = data[fname]
             orig_sm = d['orig_sm']
 
@@ -1006,8 +1009,8 @@ def dino_facility(dataset, model_name):
 
 
 if __name__ == "__main__":
-    # dataset_multiple_SFS_cls('ucf101', 'mc3-18', 'sfs', thr=0.1)
-    dino_facility('ucf101', 'mc3-18')
+    dataset_multiple_SFS_cls('ucf101', 'mc3-18', 'sfs', thr=0.1, skip_i=0)
+    # dino_facility('ucf101', 'mc3-18')
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')
     # distribution_mmd('ucf101', 'mc3-18', forward = True, select='random')
