@@ -445,34 +445,35 @@ def plot_multi_sfs_cls(dataset, model_name, fname):
         arr = np.linspace(start=0, stop=1, num=len(ordered_frames))
         imp_vals = [float(arr[ordered_frames.index(s)]) for s in sfs]
         imp_list.append(imp_vals)
-        
-        
-
-    plot_path = os.path.join(CONF.OUT_PATH, 'results', 'plots', 'mul_sfs')
-
-    ward = 'forward' if forward else 'backward'
-    data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'multi_{dataset}_{model_name}_{ward}.jsonl')
-    mul_data_dict = func.load_jsonl_to_dict(data_path)
-
-    data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
-    data_dict = func.load_jsonl_to_dict(data_path)
-
-    sfs1 = data_dict[list(data_dict.keys())[i]]
-    js_ar = np.array(sfs1['js_ar'])
-    idx = min(np.argwhere(js_ar<thr))[0]
-    sfs1 = [sfs1['idx'][:idx+1]]
-    sfs2 = mul_data_dict[list(mul_data_dict.keys())[i]]
-    mul_sfs = sfs1 + sfs2
-    print(mul_sfs)
 
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, model_name)
-    video = model.get_video(path_list[i])
+    paths = ['\\'.join(path.split('\\')[-1].split('/')) for path in path_list]
+    path = path_list[paths.index(fname)]
+    video = model.get_video(path)
 
     #save image
     grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
     plt.imshow(grid.permute(1,2,0).cpu().numpy())
     plt.axis('off')
+
+    fig = plt.gcf()
+    ax = plt.gca()
+
+    n_frames = video.size(2)
+    img_height, img_width = grid.shape[1], grid.shape[2]  # After permute
+    frame_width = img_width // n_frames
+    # Position circles at the top center of each frame (in data coordinates)
+    for i in range(n_frames):
+        x = (i + 0.5) * frame_width  # Data x position
+        y = -frame_width // 12  # Data y position (above the frame)
+        
+        # Add circle in data coordinates
+        circle = plt.Circle((x, y), frame_width//10, color='red', clip_on=False)
+        ax.add_patch(circle)
+
+
+
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
     out_file_name = os.path.basename(os.path.dirname(path_list[i])) + '_' + os.path.basename(path_list[i]).split('.')[0] + '.png'
     print(f'{out_file_name} {mul_sfs}')
