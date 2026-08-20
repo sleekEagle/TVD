@@ -1009,7 +1009,7 @@ def dino_facility(dataset, model_name):
 
 
 if __name__ == "__main__":
-    dataset_multiple_SFS_cls('ucf101', 'mc3-18', 'sfs', thr=0.1, skip_i=0)
+    dataset_multiple_SFS_cls('ssv2', 'vjepa2', 'sfs', thr=0.1, skip_i=0)
     # dino_facility('ucf101', 'mc3-18')
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')

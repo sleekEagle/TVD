@@ -1,6 +1,19 @@
 from moviepy import VideoFileClip
+from dataloaders import data_paths
+
 input_file = r"D:\datasets\SSV2\s2s_test\Moving something across a surface until it falls down\3913.webm"
 output_file = r"D:\datasets\SSV2\mp4\temp.mp4"
+
+path_list, cls_list, idx_list = data_paths.get_paths('ssv2')
+cs = set(cls_list)
+for name in cs:
+    print(f'{name} \n')
+
+
+for i in set(idx_list):
+    print(len([idx for idx in idx_list if idx==i]))
+
+pass
 
 
 def save_mp4_tmp_file(input_file, output_file):
