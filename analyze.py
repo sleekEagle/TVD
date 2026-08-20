@@ -726,7 +726,7 @@ def dataset_multiple_SFS(dataset, model_name, method, forward = True, thr=1e-3):
             f.write(json.dumps(d) + '\n')
             f.flush()
 
-def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1,skipi=0):
+def dataset_multiple_SFS_cls(dataset, model_name, method, thr=0.1, skipi=0):
     data_path = os.path.join(CONF.OUT_PATH, method, f'top1_{dataset}_{model_name}.jsonl')
     write_path = os.path.join(CONF.SAVE_PATH, method, f'multop1_{dataset}_{model_name}.jsonl')
     os.makedirs(os.path.dirname(write_path), exist_ok=True)
@@ -1008,7 +1008,7 @@ def dino_facility(dataset, model_name):
 
 
 if __name__ == "__main__":
-    dataset_multiple_SFS_cls('ssv2', 'vjepa2', 'sfs', thr=0.1, skip_i=0)
+    dataset_multiple_SFS_cls('ucf101', 'r3d-18', 'sfs', thr=0.1, skipi=0)
     # dino_facility('ucf101', 'mc3-18')
     # dataset_curves('ssv2', 'tformer_base', 'facility', forward=False)
     # distribution_shift('ucf101', 'mc3-18', forward = False, select='random')

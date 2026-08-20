@@ -17,6 +17,10 @@ import analyze
 from torchvision.utils import make_grid
 from tqdm import tqdm
 
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 def plot_JS_seq(dataset, model_name, fname, forward):
     out_path = os.path.join(CONF.OUT_PATH, 'plots', 'JS_seq')
@@ -412,6 +416,69 @@ def plot_multi_sfs(dataset, model_name, forward, i, thr=1e-3):
     plt.savefig(os.path.join(plot_path, f'{out_file_name}'), bbox_inches='tight', pad_inches=0, dpi=300)
 
 
+def plot_multi_sfs_cls(dataset, model_name, fname):
+    first_data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'top1_{dataset}_{model_name}.jsonl')
+    first_data_dict = func.load_jsonl_to_dict(first_data_path)
+    first_sfs_data = first_data_dict[fname]
+
+    data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'multop1_{dataset}_{model_name}.jsonl')
+    data_dict = func.load_jsonl_to_dict(data_path)
+    sfs_data = data_dict[fname]
+
+    sfs_list = sfs_data['sfs_list']
+    rem_f_list = []
+    rem_f_list.append(first_sfs_data['rem_f'])
+    rem_f_list.extend([item['rem_f'] for item in sfs_data['res_list']])
+
+    sm_list = []
+    sm_list.append(first_sfs_data['sm'])
+    sm_list.extend([item['sm'] for item in sfs_data['res_list']])
+
+    all_frames_list = []
+    all_frames_list.append(first_sfs_data['start_frames'])
+    all_frames_list.extend([item['start_frames'] for item in sfs_data['res_list']])
+
+    imp_list = []
+    for idx, sfs in enumerate(sfs_list):
+        non_removed = [f for f in all_frames_list[idx] if f not in rem_f_list[idx]]
+        ordered_frames = rem_f_list[idx] + non_removed
+        arr = np.linspace(start=0, stop=1, num=len(ordered_frames))
+        imp_vals = [float(arr[ordered_frames.index(s)]) for s in sfs]
+        imp_list.append(imp_vals)
+        
+        
+
+    plot_path = os.path.join(CONF.OUT_PATH, 'results', 'plots', 'mul_sfs')
+
+    ward = 'forward' if forward else 'backward'
+    data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'multi_{dataset}_{model_name}_{ward}.jsonl')
+    mul_data_dict = func.load_jsonl_to_dict(data_path)
+
+    data_path = os.path.join(CONF.OUT_PATH, 'brute' ,f'curves_{dataset}_{model_name}_{ward}.jsonl')
+    data_dict = func.load_jsonl_to_dict(data_path)
+
+    sfs1 = data_dict[list(data_dict.keys())[i]]
+    js_ar = np.array(sfs1['js_ar'])
+    idx = min(np.argwhere(js_ar<thr))[0]
+    sfs1 = [sfs1['idx'][:idx+1]]
+    sfs2 = mul_data_dict[list(mul_data_dict.keys())[i]]
+    mul_sfs = sfs1 + sfs2
+    print(mul_sfs)
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model_name)
+    video = model.get_video(path_list[i])
+
+    #save image
+    grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
+    plt.imshow(grid.permute(1,2,0).cpu().numpy())
+    plt.axis('off')
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    out_file_name = os.path.basename(os.path.dirname(path_list[i])) + '_' + os.path.basename(path_list[i]).split('.')[0] + '.png'
+    print(f'{out_file_name} {mul_sfs}')
+
+    plt.savefig(os.path.join(plot_path, f'{out_file_name}'), bbox_inches='tight', pad_inches=0, dpi=300)
+
 def exchange_SFS(dataset, cls_model_name, sfs_model_name, thr=0.1):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
     model = get_model.get_model(dataset, cls_model_name)
@@ -439,7 +506,10 @@ def exchange_SFS(dataset, cls_model_name, sfs_model_name, thr=0.1):
             keep = [f for f in sfs['start_frames'] if f not in rem_f]
 
             video = model.get_video(path)
-            fvideo = func.fill_with_keep(keep, video, 'past')
+            if len(keep) == video.size(2):
+                fvideo=video
+            else:
+                fvideo = func.fill_with_keep(keep, video, 'past')
             pred = model.predict_video(fvideo)
             pred_sm = F.softmax(pred, dim=1)
             pred_sm_cls = str(pred_sm[0, sfs['cls']].item())
@@ -455,6 +525,64 @@ def exchange_SFS(dataset, cls_model_name, sfs_model_name, thr=0.1):
         f.flush()
 
 
+def plot_exchange_SFS(dataset, model_name1, model_name2):
+    from itertools import product
+
+    save_path = os.path.join(CONF.SAVE_PATH, 'results', 'exchange_SFS')
+    s = [model_name1, model_name2]
+    ticks = [f'{s[j[0]]}\n▼\n{s[j[1]]}' for j in [[0,0],[0,1],[1,1],[1,0]]]
+    files = [f'{dataset}_cls-{s[j[0]]}_sfs-{s[j[1]]}.txt' for j in [[0,0],[0,1],[1,1],[1,0]]]
+    file_paths = [os.path.join(save_path, f) for f in files]
+
+    def read_vals(path):
+        with open(path, 'r') as file:
+            lines = file.readlines()
+        lines = [line.strip() for line in lines]
+        sm = [float(l) for l in lines[:-1]]
+        acc = lines[-1].split(':')[-1].strip()
+        return sm, acc
+
+    plt.rcParams.update({'font.size': 14})
+    plt.rcParams["font.family"] = "monospace"
+    plt.rcParams['font.monospace'] = ['Courier New']
+
+    vals = [read_vals(path) for path in file_paths]
+    acc_vals = [v[1] for v in vals]
+    list_vals = [v[0] for v in vals]
+    parts = plt.violinplot(list_vals)
+
+    colors = ['#45B7D1', '#FFA07A', '#45B7D1', '#FFA07A']
+    # Apply different colors to each violin
+    for i, pc in enumerate(parts['bodies']):
+        pc.set_facecolor(colors[i])
+        pc.set_edgecolor('black')
+        pc.set_alpha(0.7)
+
+    # Add labels
+    plt.xticks([1, 2, 3, 4], ticks)
+    plt.ylabel('Prediction Prob.')
+    plt.grid(True, alpha=0.3)
+    plt.savefig(os.path.join(save_path, f'{dataset}.png'), dpi=300, bbox_inches='tight')  # 300 DPI (print quality)
+    plt.show()
+
+
+def SFS_stats(dataset, model_name):
+    data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'multop1_{dataset}_{model_name}.jsonl')
+    data = func.load_jsonl_to_dict(data_path)
+
+    n_expl = 0
+    n_frames = 0
+    for k in data:
+        d = data[k]
+        sfs_list = d['sfs_list']
+        n_expl+=len(sfs_list)
+        for sfs in sfs_list:
+            n_frames+=len(sfs)
+    avg_expl = n_expl/len(data)
+    avg_frames = n_frames/n_expl
+    print(f'avg # explanations: {avg_expl}, avg # frames per exp: {avg_frames}')
+
+    pass
 
 
 
@@ -462,9 +590,13 @@ if __name__ == "__main__":
     # print_sutable_samples()
     # plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
+    plot_multi_sfs_cls('ssv2', 'vjepa2', 'Opening something\\18644.webm')
 
     # js_vs_dist('ucf101', 'mc3-18')
     # cls_metrics('ucf101', 'r3d-18', thr=1e-2)
-    exchange_SFS('ucf101', 'mc3-18', 'r3d-18')
-    exchange_SFS('ucf101', 'mc3-18', 'mc3-18')
-    pass
+    # plot_exchange_SFS('ucf101', 'mc3-18', 'r3d-18')
+
+    # exchange_SFS('ssv2', 'tformer_base', 'tformer_base', thr=0.1)
+    # exchange_SFS('ssv2', 'tformer_base', 'vjepa2', thr=0.1)
+    # SFS_stats('ssv2','tformer_base')
+    
