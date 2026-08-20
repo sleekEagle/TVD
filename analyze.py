@@ -629,7 +629,6 @@ def dataset_curves_cls(dataset, model_name, method):
 
     with open(out_file, 'a') as f:
         for i in tqdm(range(len(path_list))):
-            if i<955:continue
             video = model.get_video(path_list[i])
             video = video.to(model.device)
             logits = model.predict_video(video)

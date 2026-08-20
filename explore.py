@@ -412,6 +412,51 @@ def plot_multi_sfs(dataset, model_name, forward, i, thr=1e-3):
     plt.savefig(os.path.join(plot_path, f'{out_file_name}'), bbox_inches='tight', pad_inches=0, dpi=300)
 
 
+def exchange_SFS(dataset, cls_model_name, sfs_model_name, thr=0.1):
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, cls_model_name)
+    save_path = os.path.join(CONF.SAVE_PATH, 'results', 'exchange_SFS')
+    os.makedirs(save_path, exist_ok=True)
+    save_path = os.path.join(save_path, f'{dataset}_cls-{cls_model_name}_sfs-{sfs_model_name}.txt')
+
+    # reasd SFS
+    sfs_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'top1_{dataset}_{sfs_model_name}.jsonl')
+    sfs_data = func.load_jsonl_to_dict(sfs_path)
+
+    with open(save_path, 'a') as f:
+        acc = 0
+        for i, path in tqdm(enumerate(path_list)):
+            bn = os.path.basename(path)
+            dn = os.path.basename(os.path.dirname(path))
+            fname = dn + '\\' + bn
+            sfs = sfs_data[fname]
+
+            sm = np.array([sfs['orig_sm']] + sfs['sm'])
+            sm_norm = (sm-sfs['orig_sm'])/sfs['orig_sm']
+            where = np.argwhere(sm_norm>-1*thr)
+            n = where.max()
+            rem_f = sfs['rem_f'][:n]
+            keep = [f for f in sfs['start_frames'] if f not in rem_f]
+
+            video = model.get_video(path)
+            fvideo = func.fill_with_keep(keep, video, 'past')
+            pred = model.predict_video(fvideo)
+            pred_sm = F.softmax(pred, dim=1)
+            pred_sm_cls = str(pred_sm[0, sfs['cls']].item())
+
+            pred_cls = torch.argmax(pred_sm, dim=1)
+            if pred_cls == idx_list[i]: acc += 1
+
+            f.write(f'{pred_sm_cls} \n')
+            f.flush()
+
+        acc /= len(path_list)
+        f.write(f'avg acc: {acc} \n')
+        f.flush()
+
+
+
+
 
 if __name__ == "__main__":
     # print_sutable_samples()
@@ -419,5 +464,7 @@ if __name__ == "__main__":
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
 
     # js_vs_dist('ucf101', 'mc3-18')
-    cls_metrics('ucf101', 'r3d-18', thr=1e-2)
+    # cls_metrics('ucf101', 'r3d-18', thr=1e-2)
+    exchange_SFS('ucf101', 'mc3-18', 'r3d-18')
+    exchange_SFS('ucf101', 'mc3-18', 'mc3-18')
     pass
