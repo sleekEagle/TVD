@@ -703,14 +703,47 @@ def plot_SFS_stats():
             pad_inches=0.0,  # Small padding for labels
             dpi=300)
 
+def SFS_percls_stats(dataset, model_name):
+    import pandas as pd
+    data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'multop1_{dataset}_{model_name}.jsonl')
+    data = func.load_jsonl_to_dict(data_path)
 
+    first_data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'top1_{dataset}_{model_name}.jsonl')
+    first_data = func.load_jsonl_to_dict(first_data_path)
+
+    n_expl = []
+    n_frames = []
+    gt_cls = []
+    pred_cls = []
+    avg_n_frames = []
+    for k in data:
+        pred_cls.append(first_data[k]['cls'])
+        gt_cls.append(first_data[k]['gt_cls'])
+        d = data[k]
+        sfs_list = d['sfs_list']
+        n_expl.append(len(sfs_list))
+        for sfs in sfs_list:
+            n_frames.append(len(sfs))
+
+        avg_n_f = sum([len(s) for s in sfs_list])/len(sfs_list)
+        avg_n_frames.append(avg_n_f)
+
+    df = pd.DataFrame({
+        'gt': gt_cls,
+        'pred': pred_cls,
+        'avg_f': avg_n_frames,
+        'exp': n_expl
+    })
+    grp_gt = df.groupby('gt').mean()
+    grp_pred = df.groupby('pred').mean()
 
 if __name__ == "__main__":
     # print_sutable_samples()
     # plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
     
-    plot_SFS_stats()
+    # plot_SFS_stats()
+    SFS_percls_stats('ucf101', 'mc3-18')
     # plot_mulsfs('ucf101', 'mc3-18', correct=True)
     # plot_multi_sfs_cls_sample('ssv2', 'vjepa2', 'Uncovering something\\20634.webm')
 
