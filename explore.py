@@ -416,41 +416,8 @@ def plot_multi_sfs(dataset, model_name, forward, i, thr=1e-3):
     plt.savefig(os.path.join(plot_path, f'{out_file_name}'), bbox_inches='tight', pad_inches=0, dpi=300)
 
 
-def plot_multi_sfs_cls(dataset, model_name, fname):
-    first_data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'top1_{dataset}_{model_name}.jsonl')
-    first_data_dict = func.load_jsonl_to_dict(first_data_path)
-    first_sfs_data = first_data_dict[fname]
-
-    data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'multop1_{dataset}_{model_name}.jsonl')
-    data_dict = func.load_jsonl_to_dict(data_path)
-    sfs_data = data_dict[fname]
-
-    sfs_list = sfs_data['sfs_list']
-    rem_f_list = []
-    rem_f_list.append(first_sfs_data['rem_f'])
-    rem_f_list.extend([item['rem_f'] for item in sfs_data['res_list']])
-
-    sm_list = []
-    sm_list.append(first_sfs_data['sm'])
-    sm_list.extend([item['sm'] for item in sfs_data['res_list']])
-
-    all_frames_list = []
-    all_frames_list.append(first_sfs_data['start_frames'])
-    all_frames_list.extend([item['start_frames'] for item in sfs_data['res_list']])
-
-    imp_list = []
-    for idx, sfs in enumerate(sfs_list):
-        non_removed = [f for f in all_frames_list[idx] if f not in rem_f_list[idx]]
-        ordered_frames = rem_f_list[idx] + non_removed
-        arr = np.linspace(start=0, stop=1, num=len(ordered_frames))
-        imp_vals = [float(arr[ordered_frames.index(s)]) for s in sfs]
-        imp_list.append(imp_vals)
-
-    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
-    model = get_model.get_model(dataset, model_name)
-    paths = ['\\'.join(path.split('\\')[-1].split('/')) for path in path_list]
-    path = path_list[paths.index(fname)]
-    video = model.get_video(path)
+def plot_multi_sfs_cls_sample(video, sfs_list, imp_list, save_path):
+    import math 
 
     #save image
     grid = make_grid(video.squeeze(0).permute(1,0,2,3), nrow=video.size(2), normalize=True, pad_value=1)
@@ -464,21 +431,125 @@ def plot_multi_sfs_cls(dataset, model_name, fname):
     img_height, img_width = grid.shape[1], grid.shape[2]  # After permute
     frame_width = img_width // n_frames
     # Position circles at the top center of each frame (in data coordinates)
-    for i in range(n_frames):
-        x = (i + 0.5) * frame_width  # Data x position
-        y = -frame_width // 12  # Data y position (above the frame)
+    
+    alpha_min, alpha_max = 0.3, 1.0
+    for sfs_idx, sfs in enumerate(sfs_list):
+        if sfs_idx>=3: break
+        imps = np.array(imp_list[sfs_idx])
+        if len(imps)>1:
+            alphas = alpha_min + (imps - imps.min()) / (imps.max() - imps.min()) * (alpha_max - alpha_min)
+        else:
+            alphas = imps
+        for i, s in enumerate(sfs):
+            a = alphas[i]
+            if sfs_idx==0:
+                x = (s + 0.5) * frame_width
+                radius = int(frame_width*0.1)
+                shape = plt.Circle((x, -radius), radius, color='#E74C3C', alpha=a, linewidth=0, clip_on=False)
+            if sfs_idx==1:
+                l = int(frame_width*0.1)*2
+                x = (s + 0.5) * frame_width - l/2
+                shape = plt.Rectangle((x,-l), l, l, color='#3498DB', alpha=a, linewidth=0, clip_on=False)
+            if sfs_idx==2:
+                l = int(frame_width*0.1)*2 # length of a side
+                x = (s + 0.5) * frame_width - l/2
+                h = l*math.cos(30*math.pi/180)
+                shape = plt.Polygon([(x, 0), (x+l, 0), (x+l/2,-h)], alpha=a, linewidth=0, color='#2ECC71')
+
+            ax.add_patch(shape)
+    ax.set_ylim(-radius*2, img_height)
+    ax.invert_yaxis() 
+
+    plt.savefig(save_path, bbox_inches='tight', pad_inches=0, dpi=300)
+    plt.close(fig)
+
+def plot_mulsfs(dataset, model_name, correct, max_n=100):
+    import random
+
+    subdir='correct' if correct else 'incorrect'
+    plot_dir = os.path.join(CONF.SAVE_PATH, 'results', 'mul_sfs_samples', dataset, subdir)
+
+    data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'multop1_{dataset}_{model_name}.jsonl')
+    data_dict = func.load_jsonl_to_dict(data_path)
+
+
+    first_data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'top1_{dataset}_{model_name}.jsonl')
+    first_data_dict = func.load_jsonl_to_dict(first_data_path)
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+    model = get_model.get_model(dataset, model_name)
+
+    if dataset=='ssv2':
+        paths = ['\\'.join(path.split('\\')[-1].split('/')) for path in path_list]
+    elif dataset=='ucf101':
+        paths = [path.split('\\')[-2] + '\\' +path.split('\\')[-1] for path in path_list]
+
+    valid_k = []
+    for k in data_dict:
+        d = data_dict[k]
+        if len(d['sfs_list'])>=1:
+            valid_k.append(k)
+    random.shuffle(valid_k)
+
+    n_saved=0
+    for fname in tqdm(valid_k):
+        out_file_name = os.path.basename(os.path.dirname(fname)) + '_' + os.path.basename(fname).split('.')[0]
         
-        # Add circle in data coordinates
-        circle = plt.Circle((x, y), frame_width//10, color='red', clip_on=False)
-        ax.add_patch(circle)
+        first_sfs_data = first_data_dict[fname]
+        sfs_data = data_dict[fname]
+
+        # save only correct predicitons
+        if correct:
+            if first_sfs_data['cls']!=first_sfs_data['gt_cls']:
+                continue
+            else:
+                if first_sfs_data['orig_sm']<0.8: continue # only use confidently incorrect predicitons
+                plot_path = os.path.join(plot_dir, f'{out_file_name}.png')
+        else:
+            if first_sfs_data['cls']==first_sfs_data['gt_cls']:
+                continue
+            else:
+                if first_sfs_data['orig_sm']<0.7: continue # only use confidently incorrect predicitons
+                pred_cls = first_sfs_data['cls']
+                pred_cls_name = cls_list[idx_list.index(pred_cls)]
+                plot_path = os.path.join(plot_dir, f'{out_file_name}--{pred_cls_name}.png')
+
+        # if n_saved==max_n:
+        #     break
+
+        sfs_list = sfs_data['sfs_list']
+        rem_f_list = []
+        rem_f_list.append(first_sfs_data['rem_f'])
+        rem_f_list.extend([item['rem_f'] for item in sfs_data['res_list']])
+
+        sm_list = []
+        sm_list.append(first_sfs_data['sm'])
+        sm_list.extend([item['sm'] for item in sfs_data['res_list']])
+
+        all_frames_list = []
+        all_frames_list.append(first_sfs_data['start_frames'])
+        all_frames_list.extend([item['start_frames'] for item in sfs_data['res_list']])
+
+        imp_list = []
+        for idx, sfs in enumerate(sfs_list):
+            non_removed = [f for f in all_frames_list[idx] if f not in rem_f_list[idx]]
+            ordered_frames = rem_f_list[idx] + non_removed
+            if len(sfs)==1:
+                imp_vals = [1]
+            else:
+                arr = np.linspace(start=0, stop=1, num=len(ordered_frames))
+                imp_vals = [float(arr[ordered_frames.index(s)]) for s in sfs]
+            imp_list.append(imp_vals)
 
 
+        path = path_list[paths.index(fname)]
+        video = model.get_video(path)
 
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    out_file_name = os.path.basename(os.path.dirname(path_list[i])) + '_' + os.path.basename(path_list[i]).split('.')[0] + '.png'
-    print(f'{out_file_name} {mul_sfs}')
+        plot_multi_sfs_cls_sample(video, sfs_list, imp_list, plot_path)
 
-    plt.savefig(os.path.join(plot_path, f'{out_file_name}'), bbox_inches='tight', pad_inches=0, dpi=300)
+        n_saved+=1
+
+
 
 def exchange_SFS(dataset, cls_model_name, sfs_model_name, thr=0.1):
     path_list, cls_list, idx_list = data_paths.get_paths(dataset)
@@ -571,19 +642,66 @@ def SFS_stats(dataset, model_name):
     data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'multop1_{dataset}_{model_name}.jsonl')
     data = func.load_jsonl_to_dict(data_path)
 
-    n_expl = 0
-    n_frames = 0
+    n_expl = []
+    n_frames = []
     for k in data:
         d = data[k]
         sfs_list = d['sfs_list']
-        n_expl+=len(sfs_list)
+        n_expl.append(len(sfs_list))
         for sfs in sfs_list:
-            n_frames+=len(sfs)
-    avg_expl = n_expl/len(data)
-    avg_frames = n_frames/n_expl
+            n_frames.append(len(sfs))
+
+    avg_expl = np.array(n_expl).mean()
+    avg_frames = np.array(n_frames).mean()
     print(f'avg # explanations: {avg_expl}, avg # frames per exp: {avg_frames}')
 
-    pass
+    def hist(arr):
+        vals = []
+        counts = []
+        for val in range(1,max(arr)+1):
+            vals.append(val)
+            counts.append(len([item for item in arr if item==val]))
+        counts = np.array(counts)
+        freq = counts/sum(counts)
+        return vals, freq
+
+    
+    # plt.bar(bin_edges[:-1], freq, width=bin_edges[1]-bin_edges[0], 
+    #     edgecolor='black', alpha=0.7)
+
+    return hist(n_expl), hist(n_frames)
+
+def plot_SFS_stats():
+    mc3 = SFS_stats('ucf101', 'mc3-18')
+    r3d = SFS_stats('ucf101', 'r3d-18')
+    vj = SFS_stats('ssv2', 'vjepa2')
+    tf = SFS_stats('ssv2', 'tformer_base')
+
+    plt.rcParams.update({'font.size': 12})
+    plt.rcParams["font.family"] = "monospace"
+    plt.rcParams['font.monospace'] = ['Courier New']
+
+    titles = ['UCF101: mc3-18', 'UCF101: r3d-18', 'SSV2: VJEPA2', 'SSV2: tf-b']
+
+    hist = [mc3[1],r3d[1],vj[1],tf[1]]
+    freqs = [h[1] for h in hist]
+    x = max([max(h[0]) for h in hist])
+    x = list(range(1,x+1))
+
+    fig, axes = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
+    for i in range(len(freqs)):
+        freq = freqs[i]
+        if len(freq)<len(x):
+            freq = np.pad(freq, pad_width=(0,len(x)-len(freq)), constant_values=0)
+        axes[i].bar(x, freq, edgecolor='none', alpha=0.7)
+        axes[i].set_title(titles[i])
+        axes[i].set_xlim(0,10)
+        axes[i].yaxis.set_major_formatter(plt.FormatStrFormatter('%.2f'))
+
+    plt.savefig(r'D:\output\TVD2\results\SFS_stats\n_frames.png', 
+            bbox_inches='tight', 
+            pad_inches=0.0,  # Small padding for labels
+            dpi=300)
 
 
 
@@ -591,7 +709,10 @@ if __name__ == "__main__":
     # print_sutable_samples()
     # plot_cls_importance('ucf101', 'mc3-18', 'v_Archery_g02_c02.avi', forward = True, thr=1e-3)
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
-    plot_multi_sfs_cls('ssv2', 'vjepa2', 'Opening something\\18644.webm')
+    
+    plot_SFS_stats()
+    # plot_mulsfs('ucf101', 'mc3-18', correct=True)
+    # plot_multi_sfs_cls_sample('ssv2', 'vjepa2', 'Uncovering something\\20634.webm')
 
     # js_vs_dist('ucf101', 'mc3-18')
     # cls_metrics('ucf101', 'r3d-18', thr=1e-2)
