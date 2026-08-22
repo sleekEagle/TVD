@@ -705,6 +705,10 @@ def plot_SFS_stats():
 
 def SFS_percls_stats(dataset, model_name):
     import pandas as pd
+    from statistics import mode
+
+    path_list, cls_list, idx_list = data_paths.get_paths(dataset)
+
     data_path = os.path.join(CONF.SAVE_PATH, 'SFS', f'multop1_{dataset}_{model_name}.jsonl')
     data = func.load_jsonl_to_dict(data_path)
 
@@ -712,30 +716,64 @@ def SFS_percls_stats(dataset, model_name):
     first_data = func.load_jsonl_to_dict(first_data_path)
 
     n_expl = []
-    n_frames = []
     gt_cls = []
     pred_cls = []
     avg_n_frames = []
+    pred_cls_names = []
+    gt_cls_names = []
     for k in data:
         pred_cls.append(first_data[k]['cls'])
         gt_cls.append(first_data[k]['gt_cls'])
+        pred_cls_names.append(cls_list[idx_list.index(first_data[k]['cls'])])
+        gt_cls_names.append(cls_list[idx_list.index(first_data[k]['gt_cls'])])
+
         d = data[k]
         sfs_list = d['sfs_list']
         n_expl.append(len(sfs_list))
-        for sfs in sfs_list:
-            n_frames.append(len(sfs))
-
         avg_n_f = sum([len(s) for s in sfs_list])/len(sfs_list)
         avg_n_frames.append(avg_n_f)
 
+    out_file = os.path.join(CONF.SAVE_PATH, 'results', 'SFS_stats', 'dataframes', f'{dataset}_{model_name}')
+    os.makedirs(out_file,exist_ok=True)
     df = pd.DataFrame({
         'gt': gt_cls,
         'pred': pred_cls,
+        'gt_names':  gt_cls_names,
+        'pred_names': pred_cls_names,
         'avg_f': avg_n_frames,
         'exp': n_expl
     })
-    grp_gt = df.groupby('gt').mean()
-    grp_pred = df.groupby('pred').mean()
+    df['correct'] = df['gt']==df['pred']
+    df.to_csv(os.path.join(out_file, 'df.csv'))
+
+    grp_gt = df.groupby('gt').agg({
+        'avg_f': 'mean',
+        'exp': 'mean',
+        'pred_names': lambda x: mode(x) if len(x) > 0 else None,  # most common occurance
+        'gt_names': lambda x: mode(x) if len(x) > 0 else None,
+        'correct': 'mean'
+    })
+    grp_gt.to_csv(os.path.join(out_file, 'grp_gt.csv'))
+    
+    grp_pred = df.groupby('pred').agg({
+        'avg_f': 'mean',
+        'exp': 'mean',
+        'pred_names':  lambda x: mode(x) if len(x) > 0 else None,
+        'gt_names':  lambda x: mode(x) if len(x) > 0 else None,
+        'correct': 'mean'
+    })
+    grp_pred.to_csv(os.path.join(out_file, 'grp_pred.csv'))
+
+    bins = pd.cut(df['exp'], bins=10)
+    grp_binned = df.groupby(bins)['correct'].mean()
+    grp_binned.to_csv(os.path.join(out_file, 'exp_vs_acc.csv'))
+
+    bins = pd.cut(df['avg_f'], bins=10)
+    grp_binned = df.groupby(bins)['correct'].mean()
+    grp_binned.to_csv(os.path.join(out_file, 'f_vs_acc.csv'))
+
+    
+
 
 if __name__ == "__main__":
     # print_sutable_samples()
@@ -743,7 +781,7 @@ if __name__ == "__main__":
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
     
     # plot_SFS_stats()
-    SFS_percls_stats('ucf101', 'mc3-18')
+    SFS_percls_stats('ucf101', 'r3d-18')
     # plot_mulsfs('ucf101', 'mc3-18', correct=True)
     # plot_multi_sfs_cls_sample('ssv2', 'vjepa2', 'Uncovering something\\20634.webm')
 
