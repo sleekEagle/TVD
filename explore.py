@@ -772,6 +772,55 @@ def SFS_percls_stats(dataset, model_name):
     grp_binned = df.groupby(bins)['correct'].mean()
     grp_binned.to_csv(os.path.join(out_file, 'f_vs_acc.csv'))
 
+
+def plot_SFS_percls_stats():
+    import pandas as pd
+    out_file = os.path.join(CONF.SAVE_PATH, 'results', 'SFS_stats', 'dataframes')
+    dirs = os.listdir(out_file)
+    dirs = [d for d in dirs if d[-4:]!='.png']
+
+    def get_mid_from_string(interval_str):
+        # Remove parentheses and split
+        clean = interval_str.strip('()[]')
+        left, right = clean.split(', ')
+        return (float(left) + float(right)) / 2
+
+    plt.rcParams["font.family"] = "monospace"
+    plt.rcParams['font.monospace'] = ['Courier New']
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    colors = ['#4477AA', '#EE6677', '#228833', '#CCBB44']
+    markers = ['o', 's', '^', 'D']
+
+
+    filename = 'f_vs_acc.csv'
+    for i, dir in enumerate(dirs):
+        dataset = dir.split('_')[0]
+        model = dir[len(dataset)+1:]
+        file_path = os.path.join(out_file, dir, filename)
+        df = pd.read_csv(file_path)
+        df['f_mid'] = df['avg_f'].apply(get_mid_from_string)
+
+        df_clean = df.dropna(subset=['f_mid', 'correct'])
+
+        ax.plot(df_clean['f_mid'], df_clean['correct'],
+                  color=colors[i % len(colors)],
+                  marker=markers[i % len(markers)],
+                  linestyle='-', label=dir)
+        
+    ax.tick_params(axis='both', labelsize=16)
+    # ax.legend(loc='upper right', prop={'size': 20})
+    ax.set_xlabel('Avg Frames', fontsize=20)
+    ax.set_ylabel('acc', fontsize=20)
+    plt.savefig(os.path.join(out_file, filename.split('.')[0]+'.png'), dpi=300)
+
+
+
+
+    pass
+
+
     
 
 
@@ -781,7 +830,8 @@ if __name__ == "__main__":
     # plot_multi_sfs('ssv2', 'vjepa2', False, 1035)
     
     # plot_SFS_stats()
-    SFS_percls_stats('ucf101', 'r3d-18')
+    # SFS_percls_stats('ucf101', 'r3d-18')
+    plot_SFS_percls_stats()
     # plot_mulsfs('ucf101', 'mc3-18', correct=True)
     # plot_multi_sfs_cls_sample('ssv2', 'vjepa2', 'Uncovering something\\20634.webm')
 
